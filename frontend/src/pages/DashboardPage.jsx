@@ -8,6 +8,7 @@ import { BingWordFrequency } from '../components/BingWordFrequency';
 import { ReviewExplorer } from '../components/ReviewExplorer';
 import { Info, BarChart3 } from 'lucide-react';
 import { useDataset } from '../context/DatasetContext';
+import { ModelMetrics } from '../components/ModelMetrics';
 
 export default function InsightsDashboardPage({ data }) {
   const [selectedSentiment, setSelectedSentiment] = useState(null);
@@ -17,6 +18,7 @@ export default function InsightsDashboardPage({ data }) {
   return (
     <div className="p-8 space-y-6">
 
+      <ModelMetrics />
 
       <div className="grid grid-cols-5 gap-6">
         <div className="col-span-2"><KeyInsights /></div>

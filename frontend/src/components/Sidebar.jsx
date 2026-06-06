@@ -18,7 +18,7 @@ export default function Sidebar() {
           <img 
             src={frankfurtImg} 
             alt="Frankfurt University" 
-            className="w-10 h-10 rounded-lg object-cover ring-2 ring-indigo-500/30" 
+            className="w-10 h-10 rounded-lg object-contain ring-2 ring-indigo-500/30" 
           />
           <div>
             <h1 className="text-base font-bold text-white tracking-tight leading-tight">Sentiment<br/>Analyzer</h1>
@@ -51,7 +51,11 @@ export default function Sidebar() {
       </div>
 
       <div className="mt-auto p-4 border-t border-slate-800/50">
-        <a href="/" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors font-medium text-sm">
+        <a 
+          href="/" 
+          onClick={() => localStorage.removeItem('username')}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors font-medium text-sm"
+        >
           <LogOut className="w-4 h-4" />
           Log out
         </a>

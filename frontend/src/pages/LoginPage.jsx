@@ -7,10 +7,22 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
+  const [error, setError] = useState('');
+
   const handleLogin = (e) => {
     e.preventDefault();
-    // The inputs have 'required' attributes so the browser will ensure they are filled
-    navigate('/ingestion');
+    const username = e.target.username.value;
+    const password = e.target.password.value;
+
+    if (
+      (username === 'admin1' && password === 'franca@15') ||
+      (username === 'user1' && password === 'space@15')
+    ) {
+      localStorage.setItem('username', username);
+      navigate('/ingestion');
+    } else {
+      setError('Invalid username or password');
+    }
   };
 
   return (
@@ -21,9 +33,9 @@ export default function LoginPage() {
         <img
           src={frankfurtImg}
           alt="Frankfurt University"
-          className="absolute inset-0 w-full h-full object-cover opacity-90"
+          className="absolute inset-0 w-full h-full object-cover object-[center_20%] opacity-90"
         />
-        <div className="relative z-20 flex flex-col justify-end p-16 h-full text-white">
+        <div className="relative z-20 flex flex-col justify-end px-16 pt-16 pb-10 h-full text-white">
           <div className="max-w-md">
             <h2 className="text-4xl text-white font-medium mb-4 leading-tight">
               Empowering your data with intelligent analysis.
@@ -106,26 +118,13 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Remember Me & Forgot Password */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  name="remember-me"
-                  type="checkbox"
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-600 border-slate-300 rounded cursor-pointer"
-                />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-slate-600 cursor-pointer">
-                  Remember me
-                </label>
-              </div>
 
-              <div className="text-sm">
-                <a href="#" className="font-medium text-indigo-600 hover:text-indigo-500 transition-colors">
-                  Forgot password?
-                </a>
+
+            {error && (
+              <div className="text-red-500 text-sm font-medium text-center">
+                {error}
               </div>
-            </div>
+            )}
 
             {/* Submit Button */}
             <div>
@@ -138,13 +137,7 @@ export default function LoginPage() {
             </div>
           </form>
 
-          {/* Register Link */}
-          <div className="pt-6 text-center text-sm">
-            <span className="text-slate-500">Don't have an account? </span>
-            <a href="#" className="font-medium text-indigo-600 hover:text-indigo-500 transition-colors">
-              Register New Account
-            </a>
-          </div>
+
         </div>
       </div>
     </div>

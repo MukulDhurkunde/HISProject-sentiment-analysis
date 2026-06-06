@@ -8,7 +8,6 @@ import {
   FileText,
   BarChart3,
   Settings,
-  Bell,
   Database,
   AlertCircle,
   Globe,

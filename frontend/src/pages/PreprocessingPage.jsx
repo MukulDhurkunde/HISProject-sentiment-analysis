@@ -4,7 +4,6 @@ import { useDataset } from '../context/DatasetContext';
 import { 
   BarChart3, 
   Settings, 
-  Bell,
   Database,
   FileText,
   Trash2,
