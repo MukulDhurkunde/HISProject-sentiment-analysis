@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDataset } from '../context/DatasetContext';
 import { 
@@ -13,7 +13,8 @@ import {
   CheckCircle2,
   Filter,
   ArrowRight,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
 
 export default function PreprocessingPage() {
@@ -23,51 +24,6 @@ export default function PreprocessingPage() {
 
   // Whether the pipeline has valid target columns from the Ingestion Hub
   const hasTargetColumns = selectedColumns && selectedColumns.length > 0;
-
-  // Apply missing data handling to get the processed rows
-  const processedRows = useMemo(() => {
-    if (!parsedData || !hasTargetColumns) return [];
-    
-    let currentRows = parsedData.rows;
-    
-    if (missingHandling === 'deletion') {
-      currentRows = currentRows.filter(row => {
-        return selectedColumns.every(col => {
-          const val = row[col];
-          return val !== null && val !== undefined && String(val).trim() !== '';
-        });
-      });
-    } else if (missingHandling === 'replace') {
-      currentRows = currentRows.map(row => {
-        const newRow = { ...row };
-        selectedColumns.forEach(col => {
-          const val = newRow[col];
-          if (val === null || val === undefined || String(val).trim() === '') {
-            newRow[col] = '[No Review]';
-          }
-        });
-        return newRow;
-      });
-    }
-    
-    return currentRows;
-  }, [parsedData, selectedColumns, hasTargetColumns, missingHandling]);
-
-  // Build raw samples per target column from the processed dataset
-  const columnSamples = useMemo(() => {
-    if (!hasTargetColumns) return {};
-    const samples = {};
-    selectedColumns.forEach(col => {
-      samples[col] = processedRows
-        .slice(0, 20)
-        .map(row => {
-          const val = row[col];
-          return val !== null && val !== undefined ? String(val) : '';
-        })
-        .filter(text => text.trim() !== '');
-    });
-    return samples;
-  }, [processedRows, selectedColumns, hasTargetColumns]);
 
   // Normalization Toggles
   const [config, setConfig] = useState({
@@ -83,88 +39,58 @@ export default function PreprocessingPage() {
     setConfig(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const transformText = (text) => {
-    if (text === null || text === undefined) return '';
-    let res = String(text);
+  const [apiData, setApiData] = useState(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [error, setError] = useState(null);
 
-    if (config.removeUrlsHtml) {
-      res = res.replace(/<[^>]*>?/gm, '');
-      res = res.replace(/(https?:\/\/[^\s]+)/g, '');
-      res = res.replace(/(www\.[^\s]+)/g, '');
-      res = res.replace(/\s{2,}/g, ' ');
-    }
-    
-    if (config.lowercase) {
-      res = res.toLowerCase();
+  // Sync with backend on config changes
+  useEffect(() => {
+    if (!parsedData || !hasTargetColumns) {
+      setApiData(null);
+      return;
     }
 
-    if (config.punctuation) {
-      // Remove standard punctuation: . , ; : ? ! ' " - ( ) [ ] { }
-      res = res.replace(/[.,;:?!'"()\[\]{}\-]/g, '');
-      res = res.replace(/\s{2,}/g, ' ');
-    }
+    const timeoutId = setTimeout(async () => {
+      setIsSyncing(true);
+      setError(null);
+      try {
+        const response = await fetch('http://localhost:8000/api/preprocess', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            df_rows: parsedData.rows,
+            columns: selectedColumns,
+            missing_strategy: missingHandling || "skip",
+            config: config
+          })
+        });
 
-    if (config.specialChars) {
-      // Remove special symbols: @ # $ % ^ & * _ = + ~ ` | \ / < >
-      res = res.replace(/[@#$%^&*_=+~`|\\/<>]/g, '');
-      res = res.replace(/\s{2,}/g, ' ');
-    }
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`API error (${response.status}): ${errorText}`);
+        }
 
-    if (config.numbers) {
-      res = res.replace(/[0-9]/g, '');
-      res = res.replace(/\s{2,}/g, ' ');
-    }
+        const data = await response.json();
+        setApiData(data);
+      } catch (err) {
+        console.error("Failed to sync with backend:", err);
+        setError(err.message || "Failed to connect to backend");
+      } finally {
+        setIsSyncing(false);
+      }
+    }, 500); // Debounce to prevent spamming backend
 
-    if (config.stopwords) {
-      const stops = ['the', 'is', 'a', 'at', 'for', 'our', 'it', 'my', 'i', 'to', 'with', 'what', 'why'];
-      res = res.split(' ').filter(w => !stops.includes(w.toLowerCase())).join(' ');
-    }
+    return () => clearTimeout(timeoutId);
+  }, [parsedData, selectedColumns, missingHandling, config, hasTargetColumns]);
 
-    return res.trim();
+  const stats = {
+    cleanedRecords: apiData?.stats?.cleaned_records?.toLocaleString() ?? (parsedData?.rows?.length || 0).toLocaleString(),
+    vocabSize: apiData?.stats?.vocab_size ?? 0,
+    noiseReduction: apiData?.stats?.noise_reduction ?? 0
   };
 
-  const transformedByColumn = useMemo(() => {
-    const result = {};
-    selectedColumns.forEach(col => {
-      const samples = columnSamples[col] || [];
-      result[col] = samples.map(text => ({
-        raw: text,
-        transformed: transformText(text)
-      }));
-    });
-    return result;
-  }, [config, columnSamples, selectedColumns]);
-
-  // Flat list of all raw samples across columns (for stats)
-  const allRawSamples = useMemo(() => {
-    return Object.values(columnSamples).flat();
-  }, [columnSamples]);
-
-  // Stats based on actual dataset size
-  const stats = useMemo(() => {
-    const totalRecords = processedRows.length;
-    let activeToggles = Object.values(config).filter(Boolean).length;
-    const cleaned = activeToggles > 0 ? Math.max(0, totalRecords - Math.round(totalRecords * 0.002)) : totalRecords;
-    // Estimate vocab by counting unique words in sampled text
-    const allWords = allRawSamples.flatMap(t => transformText(t).split(/\s+/).filter(Boolean));
-    const uniqueWords = new Set(allWords).size;
-
-    // Compute noise reduction from actual character-level difference
-    let noiseReduction = 0;
-    if (allRawSamples.length > 0) {
-      const rawTotal = allRawSamples.reduce((sum, t) => sum + t.length, 0);
-      const transformedTotal = allRawSamples.reduce((sum, t) => sum + transformText(t).length, 0);
-      noiseReduction = rawTotal > 0
-        ? parseFloat(((1 - transformedTotal / rawTotal) * 100).toFixed(1))
-        : 0;
-    }
-
-    return {
-      cleanedRecords: cleaned.toLocaleString(),
-      vocabSize: uniqueWords,
-      noiseReduction
-    };
-  }, [config, processedRows.length, allRawSamples]);
+  const transformedByColumn = apiData?.preview || {};
+  const processedRows = apiData?.processed_df || [];
 
   const resetConfig = () => {
     setConfig({
@@ -216,7 +142,7 @@ export default function PreprocessingPage() {
                   >
                     <option value="" disabled>Select strategy...</option>
                     <option value="deletion">Row Deletion</option>
-                    <option value="replace">Replace with Missing</option>
+                    <option value="replace">Skip in Analysis</option>
                   </select>
                   <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -278,8 +204,12 @@ export default function PreprocessingPage() {
               </div>
               {hasTargetColumns && (
                 <div className="text-xs font-medium px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-md border border-indigo-100 flex items-center gap-1.5">
-                  <Activity className="w-3.5 h-3.5" />
-                  Live Sync
+                  {isSyncing ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Activity className="w-3.5 h-3.5" />
+                  )}
+                  {isSyncing ? 'Syncing with R...' : 'Live Sync'}
                 </div>
               )}
             </div>
@@ -295,6 +225,20 @@ export default function PreprocessingPage() {
                     Please go back to the <span className="font-medium text-indigo-600">Data Ingestion Hub</span> and select one or more target text columns before preprocessing.
                   </p>
                 </div>
+              ) : error ? (
+                <div className="flex-1 flex flex-col items-center justify-center py-20 text-center px-6">
+                  <div className="p-4 bg-rose-50 rounded-full mb-4">
+                    <AlertCircle className="w-8 h-8 text-rose-500" />
+                  </div>
+                  <h4 className="text-base font-semibold text-rose-700 mb-1">Preprocessing Failed</h4>
+                  <p className="text-sm text-slate-500 max-w-lg break-words">
+                    {error}
+                  </p>
+                </div>
+              ) : isSyncing && !apiData ? (
+                 <div className="flex-1 flex items-center justify-center py-20">
+                   <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+                 </div>
               ) : (
                 <div className="divide-y divide-slate-200">
                   {selectedColumns.map(col => (
