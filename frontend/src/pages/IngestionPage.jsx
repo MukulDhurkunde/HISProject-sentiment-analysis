@@ -15,8 +15,8 @@ import {
   Sliders,
   Activity,
   PieChart,
-  X,
-  Loader2
+  Loader2,
+  X
 } from 'lucide-react';
 import frankfurtImg from '../assets/Frankfurt_University.png';
 
@@ -27,12 +27,12 @@ export default function IngestionPage() {
   const {
     fileInfo, setFileInfo,
     parsedData, setParsedData,
-    selectedColumns, setSelectedColumns,
+    selectedTextColumn, setSelectedTextColumn,
+    labelColumn, setLabelColumn,
     parseError, setParseError,
   } = useDataset();
 
   // Local-only ephemeral state
-  const [currentDropdownValue, setCurrentDropdownValue] = useState('');
   const [isParsing, setIsParsing] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const fileInputRef = useRef(null);
@@ -108,22 +108,12 @@ export default function IngestionPage() {
     });
   }, [displayColumns, displayRows]);
 
-  const handleAddColumn = (column) => {
-    if (column && !selectedColumns.includes(column)) {
-      setSelectedColumns([...selectedColumns, column]);
-      setCurrentDropdownValue('');
-    }
-  };
-
-  const handleRemoveColumn = (columnToRemove) => {
-    setSelectedColumns(selectedColumns.filter(col => col !== columnToRemove));
-  };
-
   const processFile = (file) => {
     setFileInfo({ name: file.name, size: file.size, type: file.type });
     setIsParsing(true);
     setParseError(null);
-    setSelectedColumns([]); // reset column selection for new file
+    setSelectedTextColumn(''); // reset column selections for new file
+    setLabelColumn('');
     setCurrentPage(0); // reset pagination for new file
 
     const extension = file.name.split('.').pop().toLowerCase();
@@ -439,59 +429,90 @@ export default function IngestionPage() {
               </div>
             </div>
 
-            {/* Select Target Columns */}
+            {/* Select Text Column */}
             <div className="pt-6 border-t border-slate-200">
-              <div className="mb-4">
-                <h3 className="text-sm font-semibold text-slate-900">Select Target Columns</h3>
-                <p className="text-xs text-slate-500 mt-1">
-                  {selectedColumns.length === 0
-                    ? `${textColumns.length} text ${textColumns.length === 1 ? 'column' : 'columns'} available`
-                    : `${selectedColumns.length} ${selectedColumns.length === 1 ? 'column' : 'columns'} selected`}
-                </p>
+              <div className="mb-3">
+                <h3 className="text-sm font-semibold text-slate-900">Select Text Column</h3>
+                <p className="text-xs text-slate-500 mt-1">This column will go through preprocessing</p>
               </div>
 
-              <div className="space-y-4">
-                <div className="relative">
-                  <select
-                    value={currentDropdownValue}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setCurrentDropdownValue(value);
-                      handleAddColumn(value);
-                    }}
-                    className="w-full bg-white border border-slate-300 text-slate-700 rounded-lg py-2.5 px-3.5 text-sm focus:ring-2 focus:ring-indigo-600 focus:border-transparent outline-none cursor-pointer shadow-sm appearance-none hover:border-slate-400 transition-colors"
+              <div className="relative">
+                <select
+                  value={selectedTextColumn}
+                  onChange={(e) => {
+                    setSelectedTextColumn(e.target.value);
+                    // Clear label column if it matches the newly selected text column
+                    if (e.target.value && labelColumn === e.target.value) {
+                      setLabelColumn('');
+                    }
+                  }}
+                  className="w-full bg-white border border-slate-300 text-slate-700 rounded-lg py-2.5 px-3.5 text-sm focus:ring-2 focus:ring-indigo-600 focus:border-transparent outline-none cursor-pointer shadow-sm appearance-none hover:border-slate-400 transition-colors"
+                >
+                  <option value="">Select a text column...</option>
+                  {textColumns.map(col => (
+                    <option key={col} value={col}>{col}</option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
+
+              {selectedTextColumn && (
+                <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium border border-indigo-200 hover:bg-indigo-200 transition-colors">
+                  <span>{selectedTextColumn}</span>
+                  <button
+                    onClick={() => setSelectedTextColumn('')}
+                    className="hover:bg-indigo-300 rounded-full p-0.5 transition-colors"
+                    title="Deselect text column"
                   >
-                    <option value="">Select text columns for analysis...</option>
-                    {textColumns.filter(col => !selectedColumns.includes(col)).map(col => (
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Select Label Column */}
+            <div className="pt-6 border-t border-slate-200">
+              <div className="mb-3">
+                <h3 className="text-sm font-semibold text-slate-900">Select Label Column</h3>
+                <p className="text-xs text-slate-500 mt-1">Required for ML models only</p>
+              </div>
+
+              <div className="relative">
+                <select
+                  value={labelColumn}
+                  onChange={(e) => setLabelColumn(e.target.value)}
+                  className="w-full bg-white border border-slate-300 text-slate-700 rounded-lg py-2.5 px-3.5 text-sm focus:ring-2 focus:ring-indigo-600 focus:border-transparent outline-none cursor-pointer shadow-sm appearance-none hover:border-slate-400 transition-colors"
+                >
+                  <option value="">Select a label column (optional)...</option>
+                  {displayColumns
+                    .filter(col => col !== selectedTextColumn)
+                    .map(col => (
                       <option key={col} value={col}>{col}</option>
                     ))}
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                  </svg>
                 </div>
-
-                {selectedColumns.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {selectedColumns.map(col => (
-                      <div
-                        key={col}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium border border-indigo-200 hover:bg-indigo-200 transition-colors"
-                      >
-                        <span>{col}</span>
-                        <button
-                          onClick={() => handleRemoveColumn(col)}
-                          className="hover:bg-indigo-300 rounded-full p-0.5 transition-colors"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
+
+              {labelColumn && (
+                <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium border border-emerald-200 hover:bg-emerald-200 transition-colors">
+                  <span>{labelColumn}</span>
+                  <button
+                    onClick={() => setLabelColumn('')}
+                    className="hover:bg-emerald-300 rounded-full p-0.5 transition-colors"
+                    title="Deselect label column"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -499,9 +520,9 @@ export default function IngestionPage() {
           <div className="p-6 border-t border-slate-200 bg-white">
             <button
               onClick={() => navigate('/preprocessing')}
-              disabled={selectedColumns.length === 0}
+              disabled={!selectedTextColumn}
               className={`w-full py-3 px-4 rounded-lg text-sm font-semibold transition-all duration-200 shadow-sm ${
-                selectedColumns.length > 0
+                selectedTextColumn
                   ? 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-indigo-600/20 shadow-md cursor-pointer'
                   : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200 opacity-60'
               }`}

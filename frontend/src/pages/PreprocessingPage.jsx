@@ -19,11 +19,11 @@ import {
 
 export default function PreprocessingPage() {
   const navigate = useNavigate();
-  const { parsedData, selectedColumns, setParsedData } = useDataset();
+  const { parsedData, selectedTextColumn, setParsedData } = useDataset();
   const [missingHandling, setMissingHandling] = useState('');
 
-  // Whether the pipeline has valid target columns from the Ingestion Hub
-  const hasTargetColumns = selectedColumns && selectedColumns.length > 0;
+  // Whether a text column was selected from the Ingestion Hub
+  const hasTextColumn = !!selectedTextColumn;
 
   // Normalization Toggles
   const [config, setConfig] = useState({
@@ -41,11 +41,12 @@ export default function PreprocessingPage() {
 
   const [apiData, setApiData] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isApplying, setIsApplying] = useState(false);
   const [error, setError] = useState(null);
 
   // Sync with backend on config changes
   useEffect(() => {
-    if (!parsedData || !hasTargetColumns) {
+    if (!parsedData || !hasTextColumn) {
       setApiData(null);
       return;
     }
@@ -54,12 +55,14 @@ export default function PreprocessingPage() {
       setIsSyncing(true);
       setError(null);
       try {
+        // Only send first 20 rows for live preview (performance optimization)
+        const previewRows = parsedData.rows.slice(0, 20);
         const response = await fetch('http://localhost:8000/api/preprocess', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            df_rows: parsedData.rows,
-            columns: selectedColumns,
+            df_rows: previewRows,
+            columns: [selectedTextColumn],
             missing_strategy: missingHandling || "skip",
             config: config
           })
@@ -81,16 +84,16 @@ export default function PreprocessingPage() {
     }, 500); // Debounce to prevent spamming backend
 
     return () => clearTimeout(timeoutId);
-  }, [parsedData, selectedColumns, missingHandling, config, hasTargetColumns]);
+  }, [parsedData, selectedTextColumn, missingHandling, config, hasTextColumn]);
 
+  const totalRows = parsedData?.rows?.length || 0;
   const stats = {
-    cleanedRecords: apiData?.stats?.cleaned_records?.toLocaleString() ?? (parsedData?.rows?.length || 0).toLocaleString(),
+    cleanedRecords: totalRows.toLocaleString(),
     vocabSize: apiData?.stats?.vocab_size ?? 0,
     noiseReduction: apiData?.stats?.noise_reduction ?? 0
   };
 
   const transformedByColumn = apiData?.preview || {};
-  const processedRows = apiData?.processed_df || [];
 
   const resetConfig = () => {
     setConfig({
@@ -104,15 +107,45 @@ export default function PreprocessingPage() {
     setMissingHandling('');
   };
 
-  const handleApplyTransformations = () => {
-    if (parsedData && processedRows) {
+  const handleApplyTransformations = async () => {
+    if (!parsedData || !hasTextColumn) return;
+
+    setIsApplying(true);
+    setError(null);
+
+    try {
+      // Send ALL rows for full processing
+      const response = await fetch('http://localhost:8000/api/preprocess', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          df_rows: parsedData.rows,
+          columns: [selectedTextColumn],
+          missing_strategy: missingHandling || "skip",
+          config: config
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`API error (${response.status}): ${errorText}`);
+      }
+
+      const data = await response.json();
+
       setParsedData({
         ...parsedData,
-        rows: processedRows
+        rows: data.processed_df
       });
+
+      // Navigate to the Analysis Engine
+      navigate('/analysis');
+    } catch (err) {
+      console.error("Failed to apply transformations:", err);
+      setError(err.message || "Failed to process full dataset");
+    } finally {
+      setIsApplying(false);
     }
-    // Navigate to the Analysis Engine
-    navigate('/analysis');
   };
 
   return (
@@ -197,12 +230,12 @@ export default function PreprocessingPage() {
               <div>
                 <h3 className="text-base font-semibold text-slate-900">Live Comparison</h3>
                 <p className="text-sm text-slate-500 mt-0.5">
-                  {hasTargetColumns
-                    ? `Transforming ${selectedColumns.length} target ${selectedColumns.length === 1 ? 'column' : 'columns'}: ${selectedColumns.join(', ')}`
+                  {hasTextColumn
+                    ? `Transforming column: ${selectedTextColumn}`
                     : 'Real-time preview of text transformations'}
                 </p>
               </div>
-              {hasTargetColumns && (
+              {hasTextColumn && (
                 <div className="text-xs font-medium px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-md border border-indigo-100 flex items-center gap-1.5">
                   {isSyncing ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -215,14 +248,14 @@ export default function PreprocessingPage() {
             </div>
             
             <div className="flex-1 overflow-auto p-0 relative">
-              {!hasTargetColumns ? (
+              {!hasTextColumn ? (
                 <div className="flex-1 flex flex-col items-center justify-center py-20 text-center px-6">
                   <div className="p-4 bg-amber-50 rounded-full mb-4">
                     <AlertCircle className="w-8 h-8 text-amber-500" />
                   </div>
-                  <h4 className="text-base font-semibold text-slate-700 mb-1">No target columns selected</h4>
+                  <h4 className="text-base font-semibold text-slate-700 mb-1">No text column selected</h4>
                   <p className="text-sm text-slate-500 max-w-sm">
-                    Please go back to the <span className="font-medium text-indigo-600">Data Ingestion Hub</span> and select one or more target text columns before preprocessing.
+                    Please go back to the <span className="font-medium text-indigo-600">Data Ingestion Hub</span> and select a text column before preprocessing.
                   </p>
                 </div>
               ) : error ? (
@@ -241,38 +274,36 @@ export default function PreprocessingPage() {
                  </div>
               ) : (
                 <div className="divide-y divide-slate-200">
-                  {selectedColumns.map(col => (
-                    <div key={col}>
-                      {/* Column label */}
-                      <div className="px-6 py-2.5 bg-slate-50 border-b border-slate-200">
-                        <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">Column: {col}</span>
-                      </div>
-                      <table className="w-full text-sm text-left border-collapse">
-                        <thead className="bg-slate-50 sticky top-0 z-10 shadow-sm shadow-slate-200/50">
-                          <tr>
-                            <th className="px-6 py-3 font-semibold text-slate-700 uppercase tracking-wider text-xs w-1/2 border-r border-slate-200">
-                              Raw Input
-                            </th>
-                            <th className="px-6 py-3 font-semibold text-indigo-700 uppercase tracking-wider text-xs w-1/2 bg-indigo-50/30">
-                              Transformed Output
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {(transformedByColumn[col] || []).map((item, idx) => (
-                            <tr key={idx} className="hover:bg-slate-50/80 transition-colors group">
-                              <td className="px-6 py-3.5 text-slate-500 font-medium border-r border-slate-200 align-top leading-relaxed">
-                                {item.raw}
-                              </td>
-                              <td className="px-6 py-3.5 text-slate-800 font-medium bg-indigo-50/10 align-top leading-relaxed">
-                                {item.transformed || <span className="text-slate-300 italic">Empty output...</span>}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                  <div>
+                    {/* Column label */}
+                    <div className="px-6 py-2.5 bg-slate-50 border-b border-slate-200">
+                      <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">Column: {selectedTextColumn}</span>
                     </div>
-                  ))}
+                    <table className="w-full text-sm text-left border-collapse">
+                      <thead className="bg-slate-50 sticky top-0 z-10 shadow-sm shadow-slate-200/50">
+                        <tr>
+                          <th className="px-6 py-3 font-semibold text-slate-700 uppercase tracking-wider text-xs w-1/2 border-r border-slate-200">
+                            Raw Input
+                          </th>
+                          <th className="px-6 py-3 font-semibold text-indigo-700 uppercase tracking-wider text-xs w-1/2 bg-indigo-50/30">
+                            Transformed Output
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {(transformedByColumn[selectedTextColumn] || []).map((item, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50/80 transition-colors group">
+                            <td className="px-6 py-3.5 text-slate-500 font-medium border-r border-slate-200 align-top leading-relaxed">
+                              {item.raw}
+                            </td>
+                            <td className="px-6 py-3.5 text-slate-800 font-medium bg-indigo-50/10 align-top leading-relaxed">
+                              {item.transformed || <span className="text-slate-300 italic">Empty output...</span>}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </div>
@@ -320,15 +351,24 @@ export default function PreprocessingPage() {
               <div className="p-5 border-t border-slate-200 bg-slate-50 flex flex-col gap-3">
                 <button 
                   onClick={handleApplyTransformations}
-                  disabled={!hasTargetColumns}
+                  disabled={!hasTextColumn || isApplying}
                   className={`w-full py-3 px-4 rounded-lg text-sm font-semibold transition-colors shadow-sm flex items-center justify-center gap-2 ${
-                    hasTargetColumns
+                    hasTextColumn && !isApplying
                       ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-600/20 cursor-pointer'
                       : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
                   }`}
                 >
-                  Apply Transformations
-                  <ArrowRight className="w-4 h-4" />
+                  {isApplying ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Processing All Rows...
+                    </>
+                  ) : (
+                    <>
+                      Apply Transformations
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
                 </button>
                 <button 
                   onClick={resetConfig}

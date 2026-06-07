@@ -9,8 +9,11 @@ export function DatasetProvider({ children }) {
   // Parsed data from the uploaded file
   const [parsedData, setParsedData] = useState(null); // { columns: string[], rows: object[] }
 
-  // Selected target columns for analysis
-  const [selectedColumns, setSelectedColumns] = useState([]);
+  // Selected text column for preprocessing (single string)
+  const [selectedTextColumn, setSelectedTextColumn] = useState('');
+
+  // Selected label column for ML model training (single string, optional)
+  const [labelColumn, setLabelColumn] = useState('');
 
   // Parse status
   const [parseError, setParseError] = useState(null);
@@ -23,17 +26,24 @@ export function DatasetProvider({ children }) {
     themeCount: 8
   });
 
+  // Final analyzed data
+  const [analysisResults, setAnalysisResults] = useState(null);
+
   const value = {
     fileInfo,
     setFileInfo,
     parsedData,
     setParsedData,
-    selectedColumns,
-    setSelectedColumns,
+    selectedTextColumn,
+    setSelectedTextColumn,
+    labelColumn,
+    setLabelColumn,
     parseError,
     setParseError,
     analysisConfig,
     setAnalysisConfig,
+    analysisResults,
+    setAnalysisResults,
   };
 
   return (
@@ -50,3 +60,4 @@ export function useDataset() {
   }
   return context;
 }
+

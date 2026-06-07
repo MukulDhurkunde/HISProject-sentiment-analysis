@@ -6,7 +6,8 @@ import {
   Info,
   CheckCircle2,
   Loader2,
-  Cpu
+  Cpu,
+  Lock
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDataset } from '../context/DatasetContext';
@@ -58,8 +59,10 @@ const ML_MODELS = [
 
 export default function AnalysisEnginePage() {
   const navigate = useNavigate();
-  const { parsedData, analysisConfig, setAnalysisConfig } = useDataset();
+  const { parsedData, selectedTextColumn, labelColumn, analysisConfig, setAnalysisConfig, setAnalysisResults } = useDataset();
   const { lexicon: selectedLexicon, mlModel: selectedMlModel = 'naive_bayes', sensitivity, themeCount } = analysisConfig || { lexicon: 'afinn', mlModel: 'naive_bayes', sensitivity: 50, themeCount: 8 };
+
+  const hasLabelColumn = !!labelColumn;
 
   const setSelectedLexicon = (val) => setAnalysisConfig(prev => ({ ...prev, lexicon: val }));
   const setSelectedMlModel = (val) => setAnalysisConfig(prev => ({ ...prev, mlModel: val }));
@@ -67,16 +70,46 @@ export default function AnalysisEnginePage() {
   const setThemeCount = (val) => setAnalysisConfig(prev => ({ ...prev, themeCount: val }));
 
   const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState(null);
 
   const rowCount = parsedData?.rows?.length || 0;
 
-  const handleRunAnalysis = () => {
+  const handleRunAnalysis = async () => {
+    if (!parsedData || !selectedTextColumn) return;
+
     setIsProcessing(true);
-    // Simulate R-API call delay
-    setTimeout(() => {
-      setIsProcessing(false);
+    setError(null);
+    
+    try {
+      const response = await fetch('http://localhost:8000/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          df_rows: parsedData.rows,
+          text_column: selectedTextColumn,
+          lexicon: selectedLexicon,
+          sensitivity: sensitivity,
+          theme_count: themeCount
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Analysis failed (${response.status}): ${errorText}`);
+      }
+
+      const data = await response.json();
+      
+      setAnalysisResults(data.processed_rows);
+      
+      // Navigate to the Dashboard
       navigate('/dashboard');
-    }, 3000);
+    } catch (err) {
+      console.error("Failed to run analysis:", err);
+      setError(err.message || "Failed to process full dataset");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -85,6 +118,16 @@ export default function AnalysisEnginePage() {
       <div className="flex-1 overflow-y-auto p-8">
         <div className="max-w-4xl mx-auto space-y-6 pb-6">
           
+          {error && (
+            <div className="bg-rose-50 text-rose-700 p-4 rounded-xl border border-rose-200 flex items-start gap-3">
+              <Info className="w-5 h-5 mt-0.5 shrink-0" />
+              <div>
+                <h4 className="font-semibold text-sm">Analysis Error</h4>
+                <p className="text-sm mt-1">{error}</p>
+              </div>
+            </div>
+          )}
+
           {/* 1. Lexicon Selection */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
               <div className="p-6 border-b border-slate-200 bg-slate-50/50">
@@ -135,44 +178,61 @@ export default function AnalysisEnginePage() {
             </div>
 
             {/* 2. Machine Learning Model Selection */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden relative">
               <div className="p-6 border-b border-slate-200 bg-slate-50/50">
                 <div className="flex items-center gap-2 mb-1">
                   <h3 className="text-lg font-semibold text-slate-900">Choose Machine Learning Model</h3>
                   <Cpu className="w-4 h-4 text-slate-400" />
                 </div>
-                <p className="text-sm text-slate-500">Select an advanced predictive model for dynamic text classification.</p>
+                <p className="text-sm text-slate-500">
+                  {hasLabelColumn 
+                    ? `Training input: ${selectedTextColumn} → Target: ${labelColumn}`
+                    : 'Select an advanced predictive model for dynamic text classification.'}
+                </p>
               </div>
               
-              <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                {ML_MODELS.map((model) => (
-                  <div 
-                    key={model.id}
-                    onClick={() => setSelectedMlModel(model.id)}
-                    className={`relative p-5 rounded-xl border-2 transition-all cursor-pointer flex flex-col h-full ${
-                      selectedMlModel === model.id 
-                        ? 'border-indigo-600 bg-indigo-50/30' 
-                        : 'border-slate-200 bg-white hover:border-indigo-300 hover:bg-slate-50'
-                    }`}
-                  >
-                    {/* Active Checkmark */}
-                    <div className={`absolute top-4 right-4 w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
-                      selectedMlModel === model.id ? 'border-indigo-600 bg-indigo-600' : 'border-slate-300'
-                    }`}>
-                      {selectedMlModel === model.id && <CheckCircle2 className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
-                    </div>
-
-                    <h4 className="text-base font-semibold text-slate-900 mb-1 pr-6">{model.name}</h4>
-                    <span className="text-xs font-medium text-indigo-600 bg-indigo-50 self-start px-2 py-0.5 rounded-md mb-3 border border-indigo-100">
-                      {model.type}
-                    </span>
-                    
-                    <p className="text-sm text-slate-600 leading-relaxed flex-1">
-                      {model.description}
-                    </p>
+              {!hasLabelColumn ? (
+                /* Locked overlay when no label column */
+                <div className="p-8 flex flex-col items-center justify-center text-center">
+                  <div className="p-4 bg-slate-100 rounded-full mb-4">
+                    <Lock className="w-8 h-8 text-slate-400" />
                   </div>
-                ))}
-              </div>
+                  <h4 className="text-base font-semibold text-slate-600 mb-2">ML Models Locked</h4>
+                  <p className="text-sm text-slate-500 max-w-md leading-relaxed">
+                    No label column selected. Please go back to <span className="font-medium text-indigo-600">Page 1</span> and select a label column to enable ML models.
+                  </p>
+                </div>
+              ) : (
+                <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {ML_MODELS.map((model) => (
+                    <div 
+                      key={model.id}
+                      onClick={() => setSelectedMlModel(model.id)}
+                      className={`relative p-5 rounded-xl border-2 transition-all cursor-pointer flex flex-col h-full ${
+                        selectedMlModel === model.id 
+                          ? 'border-indigo-600 bg-indigo-50/30' 
+                          : 'border-slate-200 bg-white hover:border-indigo-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      {/* Active Checkmark */}
+                      <div className={`absolute top-4 right-4 w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
+                        selectedMlModel === model.id ? 'border-indigo-600 bg-indigo-600' : 'border-slate-300'
+                      }`}>
+                        {selectedMlModel === model.id && <CheckCircle2 className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
+                      </div>
+
+                      <h4 className="text-base font-semibold text-slate-900 mb-1 pr-6">{model.name}</h4>
+                      <span className="text-xs font-medium text-indigo-600 bg-indigo-50 self-start px-2 py-0.5 rounded-md mb-3 border border-indigo-100">
+                        {model.type}
+                      </span>
+                      
+                      <p className="text-sm text-slate-600 leading-relaxed flex-1">
+                        {model.description}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* 3. Analysis Sensitivity & Granularity */}
