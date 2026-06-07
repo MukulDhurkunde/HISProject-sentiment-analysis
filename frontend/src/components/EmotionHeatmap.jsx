@@ -1,12 +1,6 @@
-const HEATMAP_DATA = [
-  { topic: 'Product Features', scores: { Joy: 85, Anger: 15, Sadness: 5, Fear: 10, Trust: 75 } },
-  { topic: 'Customer Support', scores: { Joy: 65, Anger: 20, Sadness: 15, Fear: 5, Trust: 90 } },
-  { topic: 'Pricing & Billing', scores: { Joy: 10, Anger: 75, Sadness: 45, Fear: 30, Trust: 20 } },
-  { topic: 'Mobile App', scores: { Joy: 25, Anger: 60, Sadness: 35, Fear: 20, Trust: 40 } },
-  { topic: 'Reliability', scores: { Joy: 55, Anger: 30, Sadness: 10, Fear: 40, Trust: 60 } },
-];
+import { useDataset } from '../context/DatasetContext';
 
-const EMOTIONS = ['Joy', 'Anger', 'Sadness', 'Fear', 'Trust'];
+const POLARITIES = ['Positive', 'Neutral', 'Negative'];
 
 // Helper to generate a background color from blue (cool) to red (warm)
 function getHeatmapColor(value) {
@@ -15,7 +9,45 @@ function getHeatmapColor(value) {
   return `hsl(${hue}, 80%, 55%)`;
 }
 
+function capitalize(str) {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
 export function EmotionHeatmap() {
+  const { analysisResults } = useDataset();
+
+  const matrix = analysisResults?.insights?.nrc_emotion_matrix;
+
+  if (!matrix || !matrix.emotions || !matrix.by_polarity) {
+    return (
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+        <h3 className="text-sm font-semibold text-slate-900">Emotion Heatmap (NRC Lexicon)</h3>
+        <p className="text-xs text-slate-500 mt-1">Intensity correlates to numerical emotion score (Cool = Low, Warm = High)</p>
+        <div className="flex items-center justify-center h-40 text-slate-400 text-sm mt-4">
+          No NRC emotion data available. Upload and analyse a dataset to see results.
+        </div>
+      </div>
+    );
+  }
+
+  const emotions = matrix.emotions;
+  const byPolarity = matrix.by_polarity;
+
+  // Find the global max value across all cells for normalisation
+  let maxValue = 0;
+  POLARITIES.forEach((polarity) => {
+    const row = byPolarity[polarity];
+    if (row) {
+      emotions.forEach((emotion) => {
+        const val = row[emotion] ?? 0;
+        if (val > maxValue) maxValue = val;
+      });
+    }
+  });
+
+  // Avoid division by zero
+  const normalise = (val) => (maxValue > 0 ? (val / maxValue) * 100 : 0);
+
   return (
     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
       <div className="flex flex-col md:flex-row md:items-end justify-between mb-6 gap-4">
@@ -36,34 +68,39 @@ export function EmotionHeatmap() {
         <table className="w-full text-sm border-separate border-spacing-y-2 border-spacing-x-2">
           <thead>
             <tr>
-              <th className="text-left font-semibold text-slate-600 pb-2 px-2 w-48">Topic Focus</th>
-              {EMOTIONS.map(emotion => (
+              <th className="text-left font-semibold text-slate-600 pb-2 px-2 w-48">Polarity</th>
+              {emotions.map(emotion => (
                 <th key={emotion} className="font-semibold text-slate-600 pb-2 text-center w-24">
-                  {emotion}
+                  {capitalize(emotion)}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {HEATMAP_DATA.map((row) => (
-              <tr key={row.topic}>
-                <td className="font-medium text-slate-800 px-2 py-3 align-middle">{row.topic}</td>
-                {EMOTIONS.map(emotion => {
-                  const score = row.scores[emotion];
-                  return (
-                    <td key={emotion} className="p-0">
-                      <div 
-                        className="h-10 rounded flex items-center justify-center text-white font-bold shadow-sm transition-transform hover:scale-[1.02] cursor-default"
-                        style={{ backgroundColor: getHeatmapColor(score) }}
-                        title={`${row.topic} - ${emotion}: ${score}`}
-                      >
-                        {score}
-                      </div>
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
+            {POLARITIES.map((polarity) => {
+              const row = byPolarity[polarity];
+              if (!row) return null;
+              return (
+                <tr key={polarity}>
+                  <td className="font-medium text-slate-800 px-2 py-3 align-middle">{polarity}</td>
+                  {emotions.map(emotion => {
+                    const rawValue = row[emotion] ?? 0;
+                    const normalisedValue = normalise(rawValue);
+                    return (
+                      <td key={emotion} className="p-0">
+                        <div 
+                          className="h-10 rounded flex items-center justify-center text-white font-bold shadow-sm transition-transform hover:scale-[1.02] cursor-default"
+                          style={{ backgroundColor: getHeatmapColor(normalisedValue) }}
+                          title={`${polarity} - ${capitalize(emotion)}: ${rawValue.toFixed(2)}`}
+                        >
+                          {rawValue.toFixed(2)}
+                        </div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

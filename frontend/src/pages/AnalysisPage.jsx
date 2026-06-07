@@ -100,7 +100,7 @@ export default function AnalysisEnginePage() {
 
       const data = await response.json();
       
-      setAnalysisResults(data.processed_rows);
+      setAnalysisResults(data);
       
       // Navigate to the Dashboard
       navigate('/dashboard');
@@ -292,7 +292,8 @@ export default function AnalysisEnginePage() {
                       value={themeCount}
                       onChange={(e) => {
                         const val = Number(e.target.value);
-                        setThemeCount(val > 8 ? 8 : val);
+                        if (isNaN(val)) return;
+                        setThemeCount(Math.max(2, Math.min(8, val)));
                       }}
                       disabled={selectedLexicon !== 'nrc'}
                       className={`block w-full px-4 py-2.5 border rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent transition-colors ${

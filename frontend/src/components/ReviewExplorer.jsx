@@ -1,23 +1,57 @@
+import { useState, useMemo } from 'react';
 import { Filter, Search } from 'lucide-react';
+import { useDataset } from '../context/DatasetContext';
 
-const REVIEWS_DATA = [
-  { id: 'REV-001', polarity: 'Positive', emotion: 'Joy', text: '<span class="bg-emerald-100 text-emerald-800 px-1 rounded font-medium">Great</span> platform, really helped our team! <span class="bg-emerald-100 text-emerald-800 px-1 rounded font-medium">Fast</span> and <span class="bg-emerald-100 text-emerald-800 px-1 rounded font-medium">reliable</span>.' },
-  { id: 'REV-002', polarity: 'Negative', emotion: 'Anger', text: 'The UI is a bit <span class="bg-rose-100 text-rose-800 px-1 rounded font-medium">clunky</span> on mobile devices. Very <span class="bg-rose-100 text-rose-800 px-1 rounded font-medium">slow</span> loading.' },
-  { id: 'REV-003', polarity: 'Positive', emotion: 'Joy', text: 'Absolutely <span class="bg-emerald-100 text-emerald-800 px-1 rounded font-medium">love</span> the new analytics features! <span class="bg-emerald-100 text-emerald-800 px-1 rounded font-medium">Best</span> update ever.' },
-  { id: 'REV-004', polarity: 'Negative', emotion: 'Fear', text: 'I keep getting logged out <span class="bg-rose-100 text-rose-800 px-1 rounded font-medium">randomly</span>. My work goes <span class="bg-rose-100 text-rose-800 px-1 rounded font-medium">missing</span>.' },
-  { id: 'REV-005', polarity: 'Positive', emotion: 'Trust', text: 'Customer support was very <span class="bg-emerald-100 text-emerald-800 px-1 rounded font-medium">helpful</span> resolving my issue.' },
-  { id: 'REV-006', polarity: 'Negative', emotion: 'Sadness', text: 'Pricing is a bit <span class="bg-rose-100 text-rose-800 px-1 rounded font-medium">steep</span> for small businesses. Too <span class="bg-rose-100 text-rose-800 px-1 rounded font-medium">expensive</span>.' },
-  { id: 'REV-007', polarity: 'Neutral', emotion: 'None', text: 'It works okay. Standard features, nothing too special.' },
-  { id: 'REV-008', polarity: 'Negative', emotion: 'Anger', text: '<span class="bg-rose-100 text-rose-800 px-1 rounded font-medium">Missing</span> some key integration options. <span class="bg-rose-100 text-rose-800 px-1 rounded font-medium">Broke</span> my workflow.' },
-  { id: 'REV-009', polarity: 'Positive', emotion: 'Trust', text: 'Excellent service, <span class="bg-emerald-100 text-emerald-800 px-1 rounded font-medium">reliable</span> and <span class="bg-emerald-100 text-emerald-800 px-1 rounded font-medium">best</span> performance I have seen.' },
-  { id: 'REV-010', polarity: 'Negative', emotion: 'Sadness', text: '<span class="bg-rose-100 text-rose-800 px-1 rounded font-medium">Worst</span> experience. Customer service was <span class="bg-rose-100 text-rose-800 px-1 rounded font-medium">bad</span> and <span class="bg-rose-100 text-rose-800 px-1 rounded font-medium">unhelpful</span>.' }
-];
+const MAX_VISIBLE_ROWS = 50;
 
 export function ReviewExplorer({ selectedSentiment }) {
-  // Filter based on donut chart selection if needed
-  const displayData = selectedSentiment 
-    ? REVIEWS_DATA.filter(r => r.polarity === selectedSentiment)
-    : REVIEWS_DATA;
+  const { analysisResults, selectedTextColumn } = useDataset();
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const rows = useMemo(() => {
+    if (!analysisResults?.processed_rows) return [];
+
+    return analysisResults.processed_rows.map((row, index) => ({
+      id: `ROW-${String(index + 1).padStart(3, '0')}`,
+      polarity: row.sentiment_label,
+      emotion: row.emotional_themes
+        ? row.emotional_themes.split(',')[0].trim()
+        : 'None',
+      text: selectedTextColumn ? (row[selectedTextColumn] ?? '') : '',
+    }));
+  }, [analysisResults, selectedTextColumn]);
+
+  const filteredRows = useMemo(() => {
+    let result = rows;
+
+    if (selectedSentiment) {
+      result = result.filter((r) => r.polarity === selectedSentiment);
+    }
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.trim().toLowerCase();
+      result = result.filter((r) =>
+        r.text.toLowerCase().includes(query)
+      );
+    }
+
+    return result;
+  }, [rows, selectedSentiment, searchQuery]);
+
+  const displayRows = filteredRows.slice(0, MAX_VISIBLE_ROWS);
+  const totalFiltered = filteredRows.length;
+
+  if (!analysisResults) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="p-12 text-center">
+          <p className="text-sm text-slate-500">
+            No analysis data available. Upload and analyse a dataset to explore reviews.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -32,13 +66,15 @@ export function ReviewExplorer({ selectedSentiment }) {
           </h3>
           <p className="text-xs text-slate-500 mt-1">Explore raw texts with sentiment keyword highlighting</p>
         </div>
-        
+
         <div className="flex items-center gap-3">
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input 
-              type="text" 
-              placeholder="Search reviews..." 
+            <input
+              type="text"
+              placeholder="Search reviews..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent w-full md:w-64"
             />
           </div>
@@ -54,34 +90,49 @@ export function ReviewExplorer({ selectedSentiment }) {
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 text-[11px] font-bold uppercase tracking-wider">
             <tr>
-              <th className="px-6 py-4">Review ID</th>
+              <th className="px-6 py-4">Row ID</th>
               <th className="px-6 py-4">Polarity</th>
               <th className="px-6 py-4">Primary Emotion</th>
-              <th className="px-6 py-4">Source Review</th>
+              <th className="px-6 py-4">Source Text</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {displayData.map((review) => (
-              <tr key={review.id} className="hover:bg-slate-50/50 transition-colors">
-                <td className="px-6 py-4 font-medium text-slate-600">{review.id}</td>
-                <td className="px-6 py-4">
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold border ${
-                    review.polarity === 'Positive' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                    review.polarity === 'Negative' ? 'bg-rose-50 text-rose-700 border-rose-200' :
-                    'bg-slate-100 text-slate-700 border-slate-200'
-                  }`}>
-                    {review.polarity}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-slate-600">{review.emotion}</td>
-                <td className="px-6 py-4 text-slate-800">
-                  <div dangerouslySetInnerHTML={{ __html: review.text }} />
+            {displayRows.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="px-6 py-8 text-center text-sm text-slate-500">
+                  No matching reviews found.
                 </td>
               </tr>
-            ))}
+            ) : (
+              displayRows.map((review) => (
+                <tr key={review.id} className="hover:bg-slate-50/50 transition-colors">
+                  <td className="px-6 py-4 font-medium text-slate-600">{review.id}</td>
+                  <td className="px-6 py-4">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold border ${
+                      review.polarity === 'Positive' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                      review.polarity === 'Negative' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                      'bg-slate-100 text-slate-700 border-slate-200'
+                    }`}>
+                      {review.polarity}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-slate-600">{review.emotion}</td>
+                  <td className="px-6 py-4 text-slate-800">
+                    <div>{review.text}</div>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
+
+      {/* Row count note */}
+      {totalFiltered > MAX_VISIBLE_ROWS && (
+        <div className="px-6 py-3 border-t border-slate-200 bg-slate-50 text-xs text-slate-500 text-center">
+          Showing {MAX_VISIBLE_ROWS} of {totalFiltered} rows
+        </div>
+      )}
     </div>
   );
 }

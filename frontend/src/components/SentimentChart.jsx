@@ -1,3 +1,6 @@
+import { useMemo } from 'react';
+import { useDataset } from '../context/DatasetContext';
+
 // Helper: convert a percentage range into an SVG arc path string
 function describeArc(cx, cy, r, startPercent, endPercent) {
   const startAngle = (startPercent / 100) * 360 - 90;
@@ -15,14 +18,58 @@ function describeArc(cx, cy, r, startPercent, endPercent) {
   return `M ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2}`;
 }
 
-const SEGMENTS = [
-  { id: 'Positive', color: '#22c55e', start: 0, end: 65 },
-  { id: 'Neutral',  color: '#94a3b8', start: 65, end: 80 },
-  { id: 'Negative', color: '#ef4444', start: 80, end: 100 },
-];
+const COLORS = {
+  Positive: '#22c55e',
+  Neutral: '#94a3b8',
+  Negative: '#ef4444',
+};
 
 export function SentimentChart({ selectedSentiment, onSentimentClick }) {
+  const { analysisResults } = useDataset();
   const cx = 18, cy = 18, r = 14;
+
+  // Dynamically compute counts, percentages, and SEGMENTS from processed_rows
+  const { segments, majorityPct } = useMemo(() => {
+    if (!analysisResults?.processed_rows?.length) {
+      return { segments: [], majorityPct: 0 };
+    }
+
+    const rows = analysisResults.processed_rows;
+    const total = rows.length;
+
+    const counts = { Positive: 0, Neutral: 0, Negative: 0 };
+    rows.forEach((row) => {
+      const label = row.sentiment_label;
+      if (label in counts) {
+        counts[label] += 1;
+      }
+    });
+
+    const pctPositive = Math.round((counts.Positive / total) * 100);
+    const pctNeutral = Math.round((counts.Neutral / total) * 100);
+    // Ensure percentages always sum to exactly 100
+    const pctNegative = 100 - pctPositive - pctNeutral;
+
+    const built = [
+      { id: 'Positive', color: COLORS.Positive, pct: pctPositive, start: 0, end: pctPositive },
+      { id: 'Neutral', color: COLORS.Neutral, pct: pctNeutral, start: pctPositive, end: pctPositive + pctNeutral },
+      { id: 'Negative', color: COLORS.Negative, pct: pctNegative, start: pctPositive + pctNeutral, end: 100 },
+    ];
+
+    // The majority percentage is the largest segment's value
+    const majority = Math.max(pctPositive, pctNeutral, pctNegative);
+
+    return { segments: built, majorityPct: majority };
+  }, [analysisResults]);
+
+  // Placeholder when no data is loaded
+  if (!analysisResults) {
+    return (
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-[300px] flex flex-col items-center justify-center">
+        <p className="text-sm text-slate-400">No data available</p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-[300px] flex flex-col">
@@ -30,12 +77,13 @@ export function SentimentChart({ selectedSentiment, onSentimentClick }) {
         <h3 className="text-sm font-semibold text-slate-900">Sentiment Distribution</h3>
         <p className="text-xs text-slate-500 mt-0.5">Click a segment to filter the Review Explorer</p>
       </div>
-      
+
       <div className="flex-1 flex items-center justify-center gap-10">
         {/* SVG Donut Chart */}
         <div className="relative w-56 h-56">
           <svg viewBox="0 0 36 36" className="w-full h-full">
-            {SEGMENTS.map((seg) => {
+            {segments.map((seg) => {
+              if (seg.pct === 0) return null; // skip empty segments
               const isActive = selectedSentiment === seg.id;
               const isFaded = selectedSentiment && !isActive;
 
@@ -53,17 +101,17 @@ export function SentimentChart({ selectedSentiment, onSentimentClick }) {
               );
             })}
           </svg>
-          
+
           {/* Center Text */}
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
             <span className="text-xs font-semibold text-slate-500">Overall</span>
-            <span className="text-2xl font-bold text-slate-900">65%</span>
+            <span className="text-2xl font-bold text-slate-900">{majorityPct}%</span>
           </div>
         </div>
 
         {/* Legend */}
         <div className="flex flex-col gap-3">
-          {SEGMENTS.map((seg) => (
+          {segments.map((seg) => (
             <button
               key={seg.id}
               onClick={() => onSentimentClick(selectedSentiment === seg.id ? null : seg.id)}
@@ -72,7 +120,7 @@ export function SentimentChart({ selectedSentiment, onSentimentClick }) {
               }`}
             >
               <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: seg.color }}></span>
-              {seg.id}
+              {seg.id} ({seg.pct}%)
             </button>
           ))}
         </div>

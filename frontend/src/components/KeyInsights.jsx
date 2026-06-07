@@ -1,20 +1,50 @@
+import React from 'react';
+import { useDataset } from '../context/DatasetContext';
+
 export function KeyInsights() {
+  const { analysisResults } = useDataset();
+  const insights = analysisResults?.insights;
+
   return (
-    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-[300px] flex flex-col">
+    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 min-h-[300px] flex flex-col">
       <h3 className="text-sm font-semibold text-slate-900 mb-4">Key Insights</h3>
-      <div className="flex-1 space-y-6">
-        <div className="relative pl-4">
-          <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500 rounded-full"></div>
-          <h4 className="text-sm font-bold text-slate-900">Best performance on positive class</h4>
-          <p className="text-xs text-slate-600 mt-1 leading-relaxed">Positive language uses distinctive words that are easy to classify.</p>
-          <p className="text-xs text-indigo-600 font-medium mt-0.5">~91% of positive reviews were correctly identified.</p>
+      
+      {!insights ? (
+        <div className="flex-1 flex flex-col items-center justify-center text-center">
+          <p className="text-sm text-slate-500 max-w-[200px]">No insights available yet. Please run the analysis engine.</p>
         </div>
-        <div className="relative pl-4">
-          <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500 rounded-full"></div>
-          <h4 className="text-sm font-bold text-slate-900">Neutral is the hardest class</h4>
-          <p className="text-xs text-slate-600 mt-1 leading-relaxed">Neutral text shares vocabulary with both polarities. This is a known NLP challenge &mdash; worth discussing in your report.</p>
+      ) : (
+        <div className="flex-1 space-y-6 overflow-y-auto pr-2">
+          
+          {/* Insight 1: Conflict Detection */}
+          <div className="relative pl-4">
+            <div className="absolute left-0 top-0 bottom-0 w-1 bg-rose-500 rounded-full"></div>
+            <h4 className="text-sm font-bold text-slate-900">Conflict Detection</h4>
+            <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+              {insights.conflict_detection}
+            </p>
+          </div>
+
+          {/* Insight 2: Confidence Warning */}
+          <div className="relative pl-4">
+            <div className="absolute left-0 top-0 bottom-0 w-1 bg-amber-500 rounded-full"></div>
+            <h4 className="text-sm font-bold text-slate-900">Confidence Warning</h4>
+            <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+              {insights.confidence_warning}
+            </p>
+          </div>
+
+          {/* Insight 4: Actionable Recommendation */}
+          <div className="relative pl-4">
+            <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500 rounded-full"></div>
+            <h4 className="text-sm font-bold text-slate-900">Actionable Recommendation</h4>
+            <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+              {insights.actionable_recommendation}
+            </p>
+          </div>
+
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -1,21 +1,45 @@
-import React from 'react';
-
-const HISTOGRAM_DATA = [
-  { score: -5, count: 12 },
-  { score: -4, count: 25 },
-  { score: -3, count: 45 },
-  { score: -2, count: 80 },
-  { score: -1, count: 120 },
-  { score: 0, count: 250 },
-  { score: 1, count: 150 },
-  { score: 2, count: 95 },
-  { score: 3, count: 55 },
-  { score: 4, count: 30 },
-  { score: 5, count: 15 },
-];
+import React, { useMemo } from 'react';
+import { useDataset } from '../context/DatasetContext';
 
 export function AfinnHistogram() {
-  const maxCount = Math.max(...HISTOGRAM_DATA.map(d => d.count));
+  const { analysisResults } = useDataset();
+
+  const histogramData = useMemo(() => {
+    if (!analysisResults?.processed_rows) return null;
+
+    // Initialise bins for scores -5 … +5
+    const bins = {};
+    for (let s = -5; s <= 5; s++) bins[s] = 0;
+
+    analysisResults.processed_rows.forEach((row) => {
+      const raw = row.sentiment_score;
+      if (raw == null || Number.isNaN(Number(raw))) return;
+      const rounded = Math.round(Number(raw));
+      const clamped = Math.max(-5, Math.min(5, rounded));
+      bins[clamped] += 1;
+    });
+
+    return Array.from({ length: 11 }, (_, i) => {
+      const score = i - 5;
+      return { score, count: bins[score] };
+    });
+  }, [analysisResults]);
+
+  if (!histogramData) {
+    return (
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+        <div className="mb-6">
+          <h3 className="text-sm font-semibold text-slate-900">Polarity Histogram (AFINN Lexicon)</h3>
+          <p className="text-xs text-slate-500 mt-1">Word count distribution by sentiment score (-5 to +5)</p>
+        </div>
+        <div className="flex items-center justify-center h-[250px] text-sm text-slate-400">
+          No analysis data available. Upload and analyse a dataset to view the histogram.
+        </div>
+      </div>
+    );
+  }
+
+  const maxCount = Math.max(...histogramData.map((d) => d.count), 1);
 
   const getColor = (score) => {
     if (score < 0) return 'bg-red-400';
@@ -41,7 +65,7 @@ export function AfinnHistogram() {
         {/* Chart Area */}
         <div className="flex-1 h-full flex flex-col">
           <div className="flex-1 flex items-end justify-between gap-1 border-b border-slate-200 relative pb-0">
-            {HISTOGRAM_DATA.map((item) => {
+            {histogramData.map((item) => {
               const heightPercentage = Math.max((item.count / maxCount) * 100, 1);
               return (
                 <div key={item.score} className="flex flex-col items-center flex-1 h-full justify-end group">
@@ -60,7 +84,7 @@ export function AfinnHistogram() {
           
           {/* X-axis labels */}
           <div className="flex justify-between gap-1 mt-2">
-             {HISTOGRAM_DATA.map((item) => (
+             {histogramData.map((item) => (
                 <div key={item.score} className="flex-1 text-center text-xs font-semibold text-slate-600">
                   {item.score > 0 ? `+${item.score}` : item.score}
                 </div>
