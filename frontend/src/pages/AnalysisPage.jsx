@@ -67,7 +67,6 @@ export default function AnalysisEnginePage() {
   const setSelectedLexicon = (val) => setAnalysisConfig(prev => ({ ...prev, lexicon: val }));
   const setSelectedMlModel = (val) => setAnalysisConfig(prev => ({ ...prev, mlModel: val }));
   const setSensitivity = (val) => setAnalysisConfig(prev => ({ ...prev, sensitivity: val }));
-  const setThemeCount = (val) => setAnalysisConfig(prev => ({ ...prev, themeCount: val }));
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
@@ -89,7 +88,11 @@ export default function AnalysisEnginePage() {
           text_column: selectedTextColumn,
           lexicon: selectedLexicon,
           sensitivity: sensitivity,
-          theme_count: themeCount
+          theme_count: 3,
+          ...(hasLabelColumn && {
+            ml_model: selectedMlModel,
+            label_column: labelColumn
+          })
         })
       });
 
@@ -276,37 +279,7 @@ export default function AnalysisEnginePage() {
                   </p>
                 </div>
 
-                {/* Number Input */}
-                <div className="w-full md:w-64 shrink-0">
-                  <label className="block text-sm font-semibold text-slate-900 mb-2">
-                    Emotional Themes count
-                  </label>
-                  <p className="text-xs text-slate-500 mb-3 leading-relaxed">
-                    Specify the maximum number of distinct emotional clusters to extract. (Primarily affects NRC lexicon).
-                  </p>
-                  <div className="relative">
-                    <input 
-                      type="number" 
-                      min="2" 
-                      max="8"
-                      value={themeCount}
-                      onChange={(e) => {
-                        const val = Number(e.target.value);
-                        if (isNaN(val)) return;
-                        setThemeCount(Math.max(2, Math.min(8, val)));
-                      }}
-                      disabled={selectedLexicon !== 'nrc'}
-                      className={`block w-full px-4 py-2.5 border rounded-lg text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent transition-colors ${
-                        selectedLexicon !== 'nrc' ? 'bg-slate-100 border-slate-200 cursor-not-allowed text-slate-400' : 'bg-white border-slate-300'
-                      }`}
-                    />
-                  </div>
-                  {selectedLexicon !== 'nrc' && (
-                     <span className="text-[11px] font-medium text-amber-600 mt-2 block">
-                       * Only applicable when using the NRC Lexicon.
-                     </span>
-                  )}
-                </div>
+
 
               </div>
             </div>

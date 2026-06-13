@@ -3,6 +3,11 @@ import { useDataset } from '../context/DatasetContext';
 
 // Helper: convert a percentage range into an SVG arc path string
 function describeArc(cx, cy, r, startPercent, endPercent) {
+  // SVG arcs fail to render if they are a perfect 360 degree circle.
+  if (endPercent - startPercent === 100) {
+    endPercent -= 0.001;
+  }
+
   const startAngle = (startPercent / 100) * 360 - 90;
   const endAngle = (endPercent / 100) * 360 - 90;
   const startRad = (startAngle * Math.PI) / 180;

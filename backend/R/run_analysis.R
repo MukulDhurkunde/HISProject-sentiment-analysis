@@ -32,6 +32,17 @@ text_column <- payload$text_column
 lexicon <- payload$lexicon       # "afinn", "bing", or "nrc"
 sensitivity <- payload$sensitivity # 0 to 100
 theme_count <- payload$theme_count # numeric (only applies to nrc)
+ml_model <- payload$ml_model       # optional: "naive_bayes", "svm", "random_forest"
+label_column <- payload$label_column # optional: name of the label column
+
+# Resolve the directory of this script so we can source sibling files
+all_args <- commandArgs()
+file_arg <- all_args[grep("^--file=", all_args)]
+if (length(file_arg) > 0) {
+  script_dir <- dirname(normalizePath(sub("^--file=", "", file_arg)))
+} else {
+  script_dir <- getwd()
+}
 
 # Convert to dataframe if it isn't already
 df <- as.data.frame(df_rows)
@@ -42,10 +53,16 @@ if (!text_column %in% colnames(df)) {
 
 texts <- as.character(df[[text_column]])
 
+# Calculate token count per text to normalize scores
+word_counts <- sapply(strsplit(texts, "\\W+"), function(x) sum(nchar(x) > 0))
+word_counts[word_counts == 0] <- 1 # prevent division by zero
+
 # Sensitivity -> Threshold mapping
-# Sensitivity 100 -> threshold 0 (any non-zero is polzarized)
-# Sensitivity 0   -> threshold 2.0 (needs a strong score)
-max_threshold <- 2.0
+# max_threshold is the strictest bar (sensitivity=0). At sensitivity=100, threshold=0.
+# Typical normalized density in real text:
+#   AFINN: words score -5 to +5, so density can reach ~0.3-0.5. A strict bar of 0.15 is reasonable.
+#   Bing/NRC: words score ±1, so density rarely exceeds ~0.15. A strict bar of 0.05 is reasonable.
+max_threshold <- if (lexicon == "afinn") 0.15 else 0.05
 threshold <- max_threshold * (1 - (sensitivity / 100))
 
 # Initialize output lists
@@ -58,7 +75,8 @@ if (lexicon == "nrc") {
   nrc_data <- suppressWarnings(suppressMessages(get_nrc_sentiment(texts)))
   
   # The overall sentiment score can be positive - negative
-  scores <- nrc_data$positive - nrc_data$negative
+  raw_scores <- nrc_data$positive - nrc_data$negative
+  scores <- raw_scores / word_counts
   
   # The 8 emotions
   emotions <- c("anger", "anticipation", "disgust", "fear", "joy", "sadness", "surprise", "trust")
@@ -82,9 +100,9 @@ if (lexicon == "nrc") {
     }
     
     # Label logic
-    if (scores[i] > threshold) {
+    if (scores[i] > 0 && scores[i] >= threshold) {
       labels[i] <- "Positive"
-    } else if (scores[i] < -threshold) {
+    } else if (scores[i] < 0 && scores[i] <= -threshold) {
       labels[i] <- "Negative"
     } else {
       labels[i] <- "Neutral"
@@ -92,12 +110,13 @@ if (lexicon == "nrc") {
   }
 } else {
   # For Bing or AFINN
-  scores <- suppressWarnings(suppressMessages(get_sentiment(texts, method = lexicon)))
+  raw_scores <- suppressWarnings(suppressMessages(get_sentiment(texts, method = lexicon)))
+  scores <- raw_scores / word_counts
   
   for (i in seq_along(scores)) {
-    if (scores[i] > threshold) {
+    if (scores[i] > 0 && scores[i] >= threshold) {
       labels[i] <- "Positive"
-    } else if (scores[i] < -threshold) {
+    } else if (scores[i] < 0 && scores[i] <= -threshold) {
       labels[i] <- "Negative"
     } else {
       labels[i] <- "Neutral"
@@ -107,7 +126,12 @@ if (lexicon == "nrc") {
 }
 
 # Append to dataframe
-df$sentiment_score <- scores
+# Store the raw (un-normalized) score for display; normalized scores were used only for thresholding
+if (lexicon == "nrc") {
+  df$sentiment_score <- nrc_data$positive - nrc_data$negative
+} else {
+  df$sentiment_score <- suppressWarnings(suppressMessages(get_sentiment(texts, method = lexicon)))
+}
 df$sentiment_label <- labels
 
 if (lexicon == "nrc") {
@@ -239,11 +263,58 @@ if (lexicon == "nrc") {
   )
 }
 
-# Write output JSON
-out_json <- toJSON(list(
+# Export lexicon dictionaries for frontend highlighting
+if (lexicon == "bing") {
+  dict <- get_sentiment_dictionary("bing")
+  pos_w <- dict$word[dict$value > 0]
+  neg_w <- dict$word[dict$value < 0]
+} else if (lexicon == "afinn") {
+  dict <- get_sentiment_dictionary("afinn")
+  pos_w <- dict$word[dict$value > 0]
+  neg_w <- dict$word[dict$value < 0]
+} else if (lexicon == "nrc") {
+  dict <- get_sentiment_dictionary("nrc")
+  pos_w <- dict$word[dict$sentiment == "positive" & dict$value > 0]
+  neg_w <- dict$word[dict$sentiment == "negative" & dict$value > 0]
+}
+
+insights$lexicon_words <- list(
+  positive = unique(pos_w),
+  negative = unique(neg_w)
+)
+
+# === ML MODEL TRAINING (optional) ===
+ml_metrics <- NULL
+
+if (!is.null(ml_model) && !is.null(label_column) &&
+    nchar(ml_model) > 0 && nchar(label_column) > 0 &&
+    label_column %in% colnames(df)) {
+
+  cat(sprintf("\n--- ML Training: model=%s, label=%s ---\n", ml_model, label_column))
+
+  # Source the ML training module
+  source(file.path(script_dir, "run_ml_training.R"))
+
+  ml_labels <- as.character(df[[label_column]])
+  ml_result <- train_and_evaluate(texts, ml_labels, ml_model)
+
+  if (!is.null(ml_result$error)) {
+    cat(sprintf("ML Warning: %s\n", ml_result$error))
+  } else {
+    ml_metrics <- ml_result
+    cat("ML training complete.\n")
+  }
+}
+
+# === Write output JSON ===
+output <- list(
   processed_rows = df,
   insights = insights
-), auto_unbox = TRUE, pretty = TRUE)
-write(out_json, outfile)
+)
+if (!is.null(ml_metrics)) {
+  output$ml_metrics <- ml_metrics
+}
+
+write_json(output, outfile, auto_unbox = TRUE, pretty = TRUE, na = "null")
 
 cat("Analysis complete.\n")

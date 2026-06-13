@@ -32,9 +32,9 @@ handle_missing_text <- function(df, columns, strategy) {
 
 #' Remove URLs and HTML tags
 remove_urls_html <- function(text) {
-  res <- str_replace_all(text, "<[^>]*>?", "")
-  res <- str_replace_all(res, "(https?:\\/\\/[^\\s]+)", "")
-  res <- str_replace_all(res, "(www\\.[^\\s]+)", "")
+  res <- str_replace_all(text, "<[^>]*>?", " ")
+  res <- str_replace_all(res, "(https?:\\/\\/[^\\s]+)", " ")
+  res <- str_replace_all(res, "(www\\.[^\\s]+)", " ")
   res <- str_squish(res) # Collapses multiple spaces to single space
   return(res)
 }
@@ -47,7 +47,7 @@ convert_lowercase <- function(text) {
 #' Remove punctuation
 remove_punctuation <- function(text) {
   # Matches . , ; : ? ! ' " - ( ) [ ] { }
-  res <- str_replace_all(text, "[.,;:?!'\"()\\[\\]{}\\-]", "")
+  res <- str_replace_all(text, "[.,;:?!'\"()\\[\\]{}\\-]", " ")
   res <- str_squish(res)
   return(res)
 }
@@ -55,14 +55,14 @@ remove_punctuation <- function(text) {
 #' Remove special characters
 remove_special_chars <- function(text) {
   # Matches @ # $ % ^ & * _ = + ~ ` | \ / < >
-  res <- str_replace_all(text, "[@#$%^&*_=+~`|\\\\/<>]", "")
+  res <- str_replace_all(text, "[@#$%^&*_=+~`|\\\\/<>]", " ")
   res <- str_squish(res)
   return(res)
 }
 
 #' Remove numbers
 remove_numbers <- function(text) {
-  res <- str_replace_all(text, "[0-9]", "")
+  res <- str_replace_all(text, "[0-9]+", " ")
   res <- str_squish(res)
   return(res)
 }
@@ -77,7 +77,7 @@ remove_stopwords <- function(text) {
   
   # Replace and squish spaces
   # Using ignore_case = TRUE to match the frontend logic which lowers words before checking
-  res <- str_replace_all(text, regex(pattern, ignore_case = TRUE), "")
+  res <- str_replace_all(text, regex(pattern, ignore_case = TRUE), " ")
   res <- str_squish(res)
   
   return(res)
@@ -170,13 +170,8 @@ apply_preprocessing <- function(df, columns, missing_strategy, config) {
 compute_preprocessing_stats <- function(raw_texts, transformed_texts, total_rows, config) {
   active_toggles <- sum(unlist(config))
   
-  # Cleaned records: frontend subtracts roughly 0.2% if any toggles active, 
-  # but here we'll just return the exact number of rows remaining for accuracy,
-  # or match the frontend heuristic if strictly required. 
-  # We will just use total_rows.
-  cleaned_records <- ifelse(active_toggles > 0, 
-                            max(0, total_rows - round(total_rows * 0.002)), 
-                            total_rows)
+  # Cleaned records: strictly the exact number of rows remaining after missing value handling
+  cleaned_records <- total_rows
   
   # Vocabulary size: unique words in transformed text
   # Filter out empty strings
@@ -184,13 +179,23 @@ compute_preprocessing_stats <- function(raw_texts, transformed_texts, total_rows
   all_words <- all_words[all_words != ""]
   vocab_size <- length(unique(all_words))
   
-  # Noise reduction: character-level difference
-  raw_total <- sum(nchar(raw_texts), na.rm = TRUE)
-  transformed_total <- sum(nchar(transformed_texts), na.rm = TRUE)
+  # Noise reduction: character-level difference ignoring whitespace
+  # We strip whitespace because replacing punctuation/HTML with spaces (to prevent word smashing)
+  # artificially masks the reduction if we count spaces.
+  raw_no_space <- gsub("\\s+", "", raw_texts)
+  trans_no_space <- gsub("\\s+", "", transformed_texts)
+  
+  raw_total <- sum(nchar(raw_no_space), na.rm = TRUE)
+  transformed_total <- sum(nchar(trans_no_space), na.rm = TRUE)
   
   noise_reduction <- 0
   if (raw_total > 0) {
     noise_reduction <- round((1 - (transformed_total / raw_total)) * 100, 1)
+  }
+  
+  # Ensure it doesn't drop below 0
+  if (noise_reduction < 0) {
+    noise_reduction <- 0
   }
   
   return(list(

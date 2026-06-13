@@ -91,6 +91,8 @@ class AnalysisRequest(BaseModel):
     lexicon: str
     sensitivity: float
     theme_count: int
+    ml_model: Optional[str] = None
+    label_column: Optional[str] = None
 
 @app.post("/api/preprocess")
 async def preprocess_data(request: PreprocessRequest):
@@ -125,7 +127,8 @@ async def preprocess_data(request: PreprocessRequest):
             [RSCRIPT_PATH, r_script_path, infile_path, outfile_path],
             capture_output=True,
             text=True,
-            encoding='utf-8'
+            encoding='utf-8',
+            errors='replace'
         )
         
         if result.returncode != 0:
@@ -133,7 +136,7 @@ async def preprocess_data(request: PreprocessRequest):
             raise HTTPException(status_code=500, detail=f"R script failed: {result.stderr}")
             
         # Read the output
-        with open(outfile_path, 'r', encoding='utf-8') as outf:
+        with open(outfile_path, 'r', encoding='utf-8', errors='replace') as outf:
             processed_data = json.load(outf)
             
         return processed_data
@@ -172,14 +175,15 @@ async def analyze_data(request: AnalysisRequest):
             [RSCRIPT_PATH, r_script_path, infile_path, outfile_path],
             capture_output=True,
             text=True,
-            encoding='utf-8'
+            encoding='utf-8',
+            errors='replace'
         )
         
         if result.returncode != 0:
             print("R Script Error Output:", result.stderr)
             raise HTTPException(status_code=500, detail=f"R script failed: {result.stderr}")
             
-        with open(outfile_path, 'r', encoding='utf-8') as outf:
+        with open(outfile_path, 'r', encoding='utf-8', errors='replace') as outf:
             analyzed_data = json.load(outf)
             
         return analyzed_data
