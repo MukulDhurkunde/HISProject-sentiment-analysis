@@ -269,9 +269,9 @@ export default function AnalysisEnginePage() {
                       className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                     />
                     <div className="flex justify-between text-xs font-medium text-slate-400 mt-2 absolute w-full bottom-0">
-                      <span>Strict (Conservative)</span>
+                      <span>Strict</span>
                       <span>Balanced</span>
-                      <span>Broad (Aggressive)</span>
+                      <span>Broad</span>
                     </div>
                   </div>
                   <p className="text-xs text-slate-500 mt-2 leading-relaxed">
