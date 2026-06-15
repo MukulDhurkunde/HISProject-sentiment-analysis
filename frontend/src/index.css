@@ -1,1 +1,32 @@
 @import "tailwindcss";
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .report-printable,
+  .report-printable * {
+    visibility: visible;
+  }
+  .report-printable {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+    overflow: visible;
+    height: auto;
+    max-height: none;
+    background-color: white;
+  }
+  .no-print {
+    display: none !important;
+  }
+  @page {
+    margin: 1.5cm;
+    size: A4;
+  }
+}

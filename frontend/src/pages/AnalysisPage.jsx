@@ -202,7 +202,7 @@ export default function AnalysisEnginePage() {
                   </div>
                   <h4 className="text-base font-semibold text-slate-600 mb-2">ML Models Locked</h4>
                   <p className="text-sm text-slate-500 max-w-md leading-relaxed">
-                    No label column selected. Please go back to <span className="font-medium text-indigo-600">Page 1</span> and select a label column to enable ML models.
+                    No label column selected. Please go back to the <span className="font-medium text-indigo-600">Data Ingestion Hub</span> and select a label column to enable ML models.
                   </p>
                 </div>
               ) : (

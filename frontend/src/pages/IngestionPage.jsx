@@ -30,6 +30,7 @@ export default function IngestionPage() {
     selectedTextColumn, setSelectedTextColumn,
     labelColumn, setLabelColumn,
     parseError, setParseError,
+    setIngestionStats,
   } = useDataset();
 
   // Local-only ephemeral state
@@ -519,7 +520,17 @@ export default function IngestionPage() {
           {/* Action Button - Pinned to Bottom */}
           <div className="p-6 border-t border-slate-200 bg-white">
             <button
-              onClick={() => navigate('/preprocessing')}
+              onClick={() => {
+                setIngestionStats({
+                  totalRecords: insights.totalRecords,
+                  detectedLanguage: insights.detectedLanguage,
+                  langConfidence: insights.langConfidence,
+                  missingCount: insights.missingCount,
+                  missingPercent: insights.missingPercent,
+                  columnsCount: displayColumns.length,
+                });
+                navigate('/preprocessing');
+              }}
               disabled={!selectedTextColumn}
               className={`w-full py-3 px-4 rounded-lg text-sm font-semibold transition-all duration-200 shadow-sm ${
                 selectedTextColumn

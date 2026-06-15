@@ -29,6 +29,12 @@ export function DatasetProvider({ children }) {
   // Final analyzed data
   const [analysisResults, setAnalysisResults] = useState(null);
 
+  // Snapshot of ingestion stats saved when user proceeds from Page 2
+  const [ingestionStats, setIngestionStats] = useState(null);
+
+  // Preprocessing config snapshot saved when user applies transformations
+  const [appliedPreprocessConfig, setAppliedPreprocessConfig] = useState(null);
+
   const value = {
     fileInfo,
     setFileInfo,
@@ -44,6 +50,10 @@ export function DatasetProvider({ children }) {
     setAnalysisConfig,
     analysisResults,
     setAnalysisResults,
+    ingestionStats,
+    setIngestionStats,
+    appliedPreprocessConfig,
+    setAppliedPreprocessConfig,
   };
 
   return (

@@ -19,7 +19,7 @@ import {
 
 export default function PreprocessingPage() {
   const navigate = useNavigate();
-  const { parsedData, selectedTextColumn, setParsedData } = useDataset();
+  const { parsedData, selectedTextColumn, setParsedData, setAppliedPreprocessConfig } = useDataset();
   const [missingHandling, setMissingHandling] = useState('');
 
   // Whether a text column was selected from the Ingestion Hub
@@ -138,7 +138,14 @@ export default function PreprocessingPage() {
         rows: data.processed_df
       });
 
-      // Navigate to the Analysis Engine
+      setAppliedPreprocessConfig({
+        config,
+        missingHandling,
+        originalCount: parsedData.rows.length,
+        processedCount: data.processed_df?.length ?? 0,
+        vocabSize: data.stats?.vocab_size ?? 0,
+        noiseReduction: data.stats?.noise_reduction ?? 0,
+      });
       navigate('/analysis');
     } catch (err) {
       console.error("Failed to apply transformations:", err);
