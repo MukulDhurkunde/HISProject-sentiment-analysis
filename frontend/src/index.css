@@ -1,30 +1,63 @@
 @import "tailwindcss";
 
 @media print {
-  body * {
-    visibility: hidden;
+  /*
+   * Strategy: The print button clones .report-printable into a
+   * #print-container div appended directly to <body> (sibling of #root).
+   * This completely sidesteps all deep-nesting / overflow / position issues.
+   */
+
+  /* 1. Hide the app — the clone lives outside #root */
+  body.printing-active > #root {
+    display: none !important;
   }
-  .report-printable,
-  .report-printable * {
-    visibility: visible;
+
+  /* 2. The print container is a direct child of body — no nesting issues */
+  #print-container {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
   }
-  .report-printable {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    max-width: 100%;
-    margin: 0;
-    padding: 0;
-    box-shadow: none;
-    overflow: visible;
-    height: auto;
-    max-height: none;
-    background-color: white;
+
+  /* 3. The cloned report content */
+  #print-container .report-printable {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    background-color: white !important;
   }
+
+  /* 4. Hide UI-only elements */
   .no-print {
     display: none !important;
   }
+
+  /* 5. Only protect small elements from page-break splits.
+        Do NOT protect tables — large tables get pushed to the next page
+        leaving a massive gap on the previous page. */
+  figure, .avoid-page-break {
+    break-inside: avoid;
+  }
+
+  /* 6. Compact spacing for print — reduce generous screen gaps.
+        Tailwind's space-y-10 uses margin-top on children, so override that. */
+  #print-container .print-body-sections {
+    padding-top: 1.25rem !important;
+    padding-bottom: 1.25rem !important;
+  }
+  #print-container .print-body-sections > * + * {
+    margin-top: 1.5rem !important;
+  }
+
+  /* 7. Keep the footer lines together */
+  #print-container .report-footer {
+    break-inside: avoid;
+  }
+
   @page {
     margin: 1.5cm;
     size: A4;

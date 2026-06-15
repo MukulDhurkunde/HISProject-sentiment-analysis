@@ -156,10 +156,10 @@ export function ReportModal({ onClose }) {
     : { text: `${completeness}%`, icon: 'bad' };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-stretch">
+    <div className="print-modal-root fixed inset-0 z-50 flex items-stretch">
       <div className="absolute inset-0 bg-black/60 no-print" onClick={onClose} />
 
-      <div className="relative z-10 flex flex-col h-full w-full max-w-5xl mx-auto bg-white shadow-2xl">
+      <div className="print-content-wrapper relative z-10 flex flex-col h-full w-full max-w-5xl mx-auto bg-white shadow-2xl">
 
         {/* Modal header — hidden during print */}
         <div className="no-print flex items-center justify-between px-6 py-4 bg-slate-900 text-white shrink-0">
@@ -170,7 +170,28 @@ export function ReportModal({ onClose }) {
           </div>
           <div className="flex items-center gap-3">
             <button
-              onClick={() => window.print()}
+              onClick={() => {
+                // Clone the report into a top-level container (sibling of #root)
+                // so it's free of all parent overflow/height/position constraints
+                const report = document.querySelector('.report-printable');
+                if (!report) return;
+
+                const container = document.createElement('div');
+                container.id = 'print-container';
+                container.appendChild(report.cloneNode(true));
+                document.body.appendChild(container);
+                document.body.classList.add('printing-active');
+
+                window.print();
+
+                // Clean up after print dialog closes (save or cancel)
+                const cleanup = () => {
+                  document.body.classList.remove('printing-active');
+                  container.remove();
+                  window.removeEventListener('afterprint', cleanup);
+                };
+                window.addEventListener('afterprint', cleanup);
+              }}
               className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors"
             >
               <Printer className="w-4 h-4" />
@@ -183,7 +204,7 @@ export function ReportModal({ onClose }) {
         </div>
 
         {/* Report body */}
-        <div className="flex-1 overflow-y-auto bg-slate-100">
+        <div className="print-content-wrapper flex-1 overflow-y-auto bg-slate-100">
           <div className="report-printable max-w-[820px] mx-auto bg-white shadow-sm my-6 text-slate-800">
 
             {/* ══ COVER ═══════════════════════════════════════════════════════ */}
@@ -212,7 +233,7 @@ export function ReportModal({ onClose }) {
             </div>
 
             {/* ══ BODY SECTIONS ════════════════════════════════════════════════ */}
-            <div className="px-12 py-8 space-y-10">
+            <div className="print-body-sections px-12 py-8 space-y-10">
 
               {/* ── 1. Data Pipeline Journey ────────────────────────────────── */}
               <Section title="1. Data Pipeline Journey" subtitle="How your raw input transformed through each stage">
@@ -487,7 +508,7 @@ export function ReportModal({ onClose }) {
               </Section>
 
               {/* ── Footer ──────────────────────────────────────────────────── */}
-              <div className="border-t-2 border-slate-100 pt-6 text-center space-y-1">
+              <div className="report-footer border-t-2 border-slate-100 pt-6 text-center space-y-1">
                 <p className="text-xs text-slate-400 font-medium">Sentiment Analysis Pipeline — Frankfurt University of Applied Sciences</p>
                 <p className="text-xs text-slate-400">Report generated on {generatedDate}</p>
               </div>
@@ -526,7 +547,7 @@ function CoverStat({ label, value, sub, accent }) {
 
 function PipelineCard({ stage, color, children }) {
   return (
-    <div className={`rounded-lg border p-4 ${color}`}>
+    <div className={`rounded-lg border p-4 ${color} avoid-page-break`}>
       <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3">{stage}</p>
       <div className="space-y-2">{children}</div>
     </div>
@@ -544,7 +565,7 @@ function StatRow({ k, v }) {
 
 function InsightItem({ label, text, border, bg }) {
   return (
-    <div className={`flex gap-3 p-4 rounded-lg border-l-4 ${border} ${bg}`}>
+    <div className={`flex gap-3 p-4 rounded-lg border-l-4 ${border} ${bg} avoid-page-break`}>
       <div>
         <h4 className="text-sm font-bold text-slate-900 mb-1">{label}</h4>
         <p className="text-sm text-slate-700 leading-relaxed">{text}</p>
@@ -564,7 +585,7 @@ function ExtremeTable({ title, subtitle, rows, accent, showLabel }) {
   if (!rows.length) return null;
 
   return (
-    <div>
+    <div className="avoid-page-break">
       <h4 className={`text-sm font-bold mb-1 ${c.header}`}>{title}</h4>
       {subtitle && <p className="text-xs text-slate-400 mb-2">{subtitle}</p>}
       <table className="w-full text-xs border border-slate-200 rounded-lg overflow-hidden">
@@ -601,7 +622,7 @@ function ExtremeTable({ title, subtitle, rows, accent, showLabel }) {
 function WordFreqTable({ title, words, accent }) {
   const color = accent === 'emerald' ? 'text-emerald-700' : 'text-red-700';
   return (
-    <div>
+    <div className="avoid-page-break">
       <h4 className={`text-sm font-bold mb-2 ${color}`}>{title}</h4>
       <table className="w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
         <thead>
@@ -740,7 +761,7 @@ function NrcMatrixTable({ matrix }) {
 
 function MetricCard({ label, value, color }) {
   return (
-    <div className={`rounded-xl border p-4 text-center ${color}`}>
+    <div className={`rounded-xl border p-4 text-center ${color} avoid-page-break`}>
       <p className="text-xs font-semibold uppercase tracking-wide mb-1 opacity-70">{label}</p>
       <p className="text-2xl font-bold">{value}</p>
     </div>
