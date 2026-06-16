@@ -1,10 +1,11 @@
 import React from 'react';
 import { useDataset } from '../context/DatasetContext';
-import { Target, Activity, PieChart, Crosshair, CheckCircle2 } from 'lucide-react';
+import { Target, Activity, PieChart, Crosshair, CheckCircle2, AlertTriangle } from 'lucide-react';
 
 export function ModelMetrics() {
   const { analysisResults } = useDataset();
   const ml = analysisResults?.ml_metrics || null;
+  const mlError = analysisResults?.ml_error || null;
 
   const hasMetrics = ml && ml.accuracy != null;
 
@@ -55,6 +56,11 @@ export function ModelMetrics() {
             <CheckCircle2 className="w-3.5 h-3.5" />
             {modelDisplayName} — Training Complete
           </span>
+        ) : mlError ? (
+          <span className="text-xs font-medium px-2.5 py-1 bg-rose-50 text-rose-700 rounded-md border border-rose-200 flex items-center gap-1.5">
+            <AlertTriangle className="w-3.5 h-3.5" />
+            Training Failed
+          </span>
         ) : (
           <span className="text-xs font-medium px-2.5 py-1 bg-slate-100 text-slate-700 rounded-md border border-slate-200">
             ML Training Deferred
@@ -64,6 +70,8 @@ export function ModelMetrics() {
       <p className="text-xs text-slate-400 mb-4">
         {hasMetrics
           ? `Evaluated on a held-out test set of ${ml.test_size} samples (80/20 stratified split).`
+          : mlError
+          ? `ML training error: ${mlError}`
           : 'Machine learning model training is not yet active. Metrics will appear here once ML models are enabled.'}
       </p>
       <div className={`grid grid-cols-1 md:grid-cols-4 gap-4 ${hasMetrics ? '' : 'opacity-50'}`}>

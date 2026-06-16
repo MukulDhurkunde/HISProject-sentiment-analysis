@@ -172,9 +172,8 @@ train_and_evaluate <- function(texts, labels, ml_model, seed = 42) {
 
     } else if (ml_model == "random_forest") {
       suppressWarnings(suppressMessages(library(randomForest)))
-      train_x$..label.. <- train_y
-      model       <- randomForest(..label.. ~ ., data = train_x, ntree = 100)
-      predictions <- predict(model, test_x)
+      model       <- randomForest(x = as.matrix(train_x), y = train_y, ntree = 100)
+      predictions <- predict(model, newdata = as.matrix(test_x))
 
     } else {
       stop(sprintf("Unknown model: '%s'", ml_model))

@@ -285,6 +285,7 @@ insights$lexicon_words <- list(
 
 # === ML MODEL TRAINING (optional) ===
 ml_metrics <- NULL
+ml_error   <- NULL
 
 if (!is.null(ml_model) && !is.null(label_column) &&
     nchar(ml_model) > 0 && nchar(label_column) > 0 &&
@@ -299,7 +300,8 @@ if (!is.null(ml_model) && !is.null(label_column) &&
   ml_result <- train_and_evaluate(texts, ml_labels, ml_model)
 
   if (!is.null(ml_result$error)) {
-    cat(sprintf("ML Warning: %s\n", ml_result$error))
+    ml_error <- ml_result$error
+    cat(sprintf("ML Warning: %s\n", ml_error))
   } else {
     ml_metrics <- ml_result
     cat("ML training complete.\n")
@@ -313,6 +315,9 @@ output <- list(
 )
 if (!is.null(ml_metrics)) {
   output$ml_metrics <- ml_metrics
+}
+if (!is.null(ml_error)) {
+  output$ml_error <- ml_error
 }
 
 write_json(output, outfile, auto_unbox = TRUE, pretty = TRUE, na = "null")

@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import ReactDOM from 'react-dom';
-import { X, Printer, FileText, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
+import { X, Printer, FileText } from 'lucide-react';
 import { useDataset } from '../context/DatasetContext';
 import frankfurtImg from '../assets/Frankfurt_University.png';
 
@@ -136,25 +136,6 @@ export function ReportModal({ onClose }) {
   const pre  = appliedPreprocessConfig || {};
   const preConfig = pre.config || {};
   const appliedOptions = Object.entries(preConfig).filter(([, v]) => v).map(([k]) => CONFIG_LABELS[k] || k);
-
-  // Coverage quality label
-  const coverageLabel = !computed ? null
-    : computed.coverage >= 30 ? { text: 'Good', icon: 'ok' }
-    : computed.coverage >= 15 ? { text: 'Moderate', icon: 'warn' }
-    : { text: 'Low', icon: 'bad' };
-
-  // Class balance quality label
-  const balanceLabel = !computed ? null
-    : computed.dominantPct >= 80 ? { text: 'Heavily Imbalanced', icon: 'bad' }
-    : computed.dominantPct >= 60 ? { text: 'Moderately Imbalanced', icon: 'warn' }
-    : { text: 'Balanced', icon: 'ok' };
-
-  const completeness = ingestionStats
-    ? Math.round(((ingestionStats.totalRecords - ingestionStats.missingCount / Math.max(ingestionStats.columnsCount, 1)) / ingestionStats.totalRecords) * 100)
-    : 100;
-  const completenessLabel = completeness >= 95 ? { text: `${completeness}%`, icon: 'ok' }
-    : completeness >= 80 ? { text: `${completeness}%`, icon: 'warn' }
-    : { text: `${completeness}%`, icon: 'bad' };
 
   return ReactDOM.createPortal(
     <div className="print-modal-root fixed inset-0 z-50 flex items-stretch">
@@ -456,59 +437,31 @@ export function ReportModal({ onClose }) {
                         <tr className="bg-white">  <td className="px-4 py-2.5 font-medium text-slate-500 border-r border-slate-100">Test Set Size</td><td className="px-4 py-2.5">{ml.test_size} samples</td></tr>
                       </tbody>
                     </table>
+
+                    {/* Recommendation based on accuracy */}
+                    <div className={`rounded-lg px-4 py-3 border-l-4 text-sm avoid-page-break ${
+                      ml.accuracy >= 80 ? 'bg-emerald-50 border-emerald-500' :
+                      ml.accuracy >= 60 ? 'bg-indigo-50 border-indigo-400' :
+                      ml.accuracy >= 40 ? 'bg-amber-50 border-amber-500' :
+                                          'bg-red-50 border-red-400'
+                    }`}>
+                      <p className="font-bold text-slate-900 mb-1">Recommendation</p>
+                      <p className="text-slate-700 leading-relaxed">
+                        {ml.accuracy >= 80
+                          ? `The ${MODEL_NAMES[ml.model_name] || ml.model_name} achieved ${ml.accuracy}% accuracy — this is a strong result. You can confidently use this model to label new, unseen data from the same domain without needing manual review for every record.`
+                          : ml.accuracy >= 60
+                          ? `The ${MODEL_NAMES[ml.model_name] || ml.model_name} achieved ${ml.accuracy}% accuracy — a reasonable result for short or informal text. To improve further, consider adding more labelled examples, especially for the under-performing class, or try a different ML model.`
+                          : ml.accuracy >= 40
+                          ? `The ${MODEL_NAMES[ml.model_name] || ml.model_name} achieved ${ml.accuracy}% accuracy — moderate performance. We recommend reviewing the label column for inconsistencies and increasing the dataset size. Trying a different model (e.g. SVM) may also improve results.`
+                          : `The ${MODEL_NAMES[ml.model_name] || ml.model_name} achieved only ${ml.accuracy}% accuracy. Do not use this model for predictions. Check whether the label column contains consistent, meaningful sentiment values and consider uploading a larger or cleaner dataset before re-running ML training.`
+                        }
+                      </p>
+                    </div>
                   </div>
                 ) : (
                   <p className="text-sm text-slate-500 italic bg-slate-50 rounded-lg p-4 border border-slate-200">
-                    No ML model was used. To enable ML metrics, select a label column on the Data Ingestion page and choose a model on the Analysis Engine page.
+                    No ML model was run for this analysis. To enable ML metrics, select a label column on the Data Ingestion page and choose a model on the Analysis Engine page.
                   </p>
-                )}
-              </Section>
-
-              {/* ── 7. Data Quality Scorecard ───────────────────────────────── */}
-              <Section title="7. Data Quality Scorecard" subtitle="Assessment of dataset suitability and result reliability">
-                <table className="w-full text-sm border border-slate-200 rounded-lg overflow-hidden mb-4">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200">
-                      <th className="text-left px-4 py-3 font-semibold text-slate-700">Metric</th>
-                      <th className="text-left px-4 py-3 font-semibold text-slate-700">Value</th>
-                      <th className="text-left px-4 py-3 font-semibold text-slate-700">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <QualityRow label="Data Completeness"         value={completenessLabel?.text}                        status={completenessLabel?.icon} />
-                    <QualityRow label={`${LEXICON_NAMES[lexicon]} Coverage`} value={computed ? `${computed.coverage}%` : '—'} status={coverageLabel?.icon} />
-                    <QualityRow label="Class Balance"             value={computed ? `${computed.dominant[0]} at ${computed.dominantPct}%` : '—'} status={balanceLabel?.icon} />
-                    <QualityRow label="Low-Confidence Results"    value={computed ? `${computed.lowConfCount} records (${computed.lowConfPct}%)` : '—'} status={computed ? (computed.lowConfPct < 10 ? 'ok' : computed.lowConfPct < 25 ? 'warn' : 'bad') : null} />
-                    <QualityRow label="Text Column"               value={selectedTextColumn || '—'} status={selectedTextColumn ? 'ok' : 'bad'} />
-                    <QualityRow label="ML Model"                  value={ml ? 'Trained & Evaluated' : 'Not used'} status={ml ? 'ok' : 'warn'} />
-                  </tbody>
-                </table>
-
-                {/* Recommendations */}
-                {computed && (
-                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-                    <p className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Recommendations</p>
-                    <ul className="space-y-1.5 text-sm text-slate-700">
-                      {computed.coverage < 15 && (
-                        <li className="flex gap-2"><span className="text-red-500 shrink-0">•</span> Low lexicon coverage detected. Try the NRC lexicon for broader emotional vocabulary, or verify that your text column has been properly cleaned.</li>
-                      )}
-                      {computed.coverage >= 15 && computed.coverage < 30 && (
-                        <li className="flex gap-2"><span className="text-amber-500 shrink-0">•</span> Moderate lexicon coverage. Applying stopword removal and lowercasing may improve match rates.</li>
-                      )}
-                      {computed.dominantPct >= 70 && (
-                        <li className="flex gap-2"><span className="text-amber-500 shrink-0">•</span> Dataset is heavily skewed toward {computed.dominant[0]}. ML models trained on this data may be biased — consider augmenting with more balanced samples.</li>
-                      )}
-                      {computed.lowConfPct >= 20 && (
-                        <li className="flex gap-2"><span className="text-violet-500 shrink-0">•</span> {computed.lowConfPct}% of results are low-confidence. Increasing the sensitivity threshold on the Analysis page will reclassify borderline texts more aggressively.</li>
-                      )}
-                      {!ml && labelColumn && (
-                        <li className="flex gap-2"><span className="text-indigo-500 shrink-0">•</span> A label column was detected but ML was not trained. Re-running the analysis with an ML model selected will provide classification accuracy metrics.</li>
-                      )}
-                      {computed.coverage >= 30 && computed.dominantPct < 60 && computed.lowConfPct < 10 && (
-                        <li className="flex gap-2"><span className="text-emerald-500 shrink-0">•</span> Dataset quality is good. Results are reliable for the selected lexicon.</li>
-                      )}
-                    </ul>
-                  </div>
                 )}
               </Section>
 
@@ -771,29 +724,6 @@ function MetricCard({ label, value, color }) {
       <p className="text-xs font-semibold uppercase tracking-wide mb-1 opacity-70">{label}</p>
       <p className="text-2xl font-bold">{value}</p>
     </div>
-  );
-}
-
-function QualityRow({ label, value, status }) {
-  const icons = {
-    ok:   <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />,
-    warn: <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />,
-    bad:  <XCircle className="w-4 h-4 text-red-500 shrink-0" />,
-  };
-  const rowColors = { ok: 'bg-white', warn: 'bg-amber-50/50', bad: 'bg-red-50/50' };
-  return (
-    <tr className={`border-b border-slate-100 ${rowColors[status] || 'bg-white'}`}>
-      <td className="px-4 py-3 font-medium text-slate-700">{label}</td>
-      <td className="px-4 py-3 text-slate-600">{value ?? '—'}</td>
-      <td className="px-4 py-3">
-        <div className="flex items-center gap-1.5">
-          {icons[status] || null}
-          <span className="text-xs font-semibold text-slate-500">
-            {status === 'ok' ? 'Good' : status === 'warn' ? 'Review' : status === 'bad' ? 'Action needed' : ''}
-          </span>
-        </div>
-      </td>
-    </tr>
   );
 }
 

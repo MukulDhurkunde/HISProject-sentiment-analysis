@@ -1,0 +1,28 @@
+# Claude Code
+.claude/
+
+# Test / scratch files
+test.csv
+test_ml.py
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+.venv/
+
+# Node / Frontend
+node_modules/
+dist/
+.DS_Store
+
+# R
+.Rhistory
+.RData
+.Rproj.user/
+
+# Temp files
+*.tmp
+*.log
