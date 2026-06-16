@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import ReactDOM from 'react-dom';
 import { X, Printer, FileText, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
 import { useDataset } from '../context/DatasetContext';
 import frankfurtImg from '../assets/Frankfurt_University.png';
@@ -155,7 +156,7 @@ export function ReportModal({ onClose }) {
     : completeness >= 80 ? { text: `${completeness}%`, icon: 'warn' }
     : { text: `${completeness}%`, icon: 'bad' };
 
-  return (
+  return ReactDOM.createPortal(
     <div className="print-modal-root fixed inset-0 z-50 flex items-stretch">
       <div className="absolute inset-0 bg-black/60 no-print" onClick={onClose} />
 
@@ -175,6 +176,10 @@ export function ReportModal({ onClose }) {
                 // so it's free of all parent overflow/height/position constraints
                 const report = document.querySelector('.report-printable');
                 if (!report) return;
+
+                // Remove any leftover print container from a previous print
+                const existing = document.getElementById('print-container');
+                if (existing) existing.remove();
 
                 const container = document.createElement('div');
                 container.id = 'print-container';
@@ -517,7 +522,8 @@ export function ReportModal({ onClose }) {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

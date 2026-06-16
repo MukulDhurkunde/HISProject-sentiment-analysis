@@ -1,6 +1,16 @@
 @import "tailwindcss";
 
+/* Screen-only: the print clone must never be visible on screen */
+#print-container {
+  display: none;
+}
+
 @media print {
+
+  /* Hide the portaled report modal — only the #print-container clone should print */
+  body.printing-active .print-modal-root {
+    display: none !important;
+  }
   /*
    * Strategy: The print button clones .report-printable into a
    * #print-container div appended directly to <body> (sibling of #root).
