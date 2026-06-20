@@ -8,6 +8,15 @@ import AnalysisEnginePage from './pages/AnalysisPage';
 import InsightsDashboardPage from './pages/DashboardPage';
 import MainLayout from './layouts/MainLayout';
 
+// Run once when the application loads/reloads
+if (typeof window !== 'undefined') {
+  localStorage.removeItem('username');
+  // Reset the URL to the root (login page) without triggering a page reload
+  if (window.location.pathname !== '/') {
+    window.history.replaceState(null, '', '/');
+  }
+}
+
 function App() {
   return (
     <BrowserRouter>
