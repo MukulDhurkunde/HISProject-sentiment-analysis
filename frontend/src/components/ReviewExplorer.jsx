@@ -45,7 +45,7 @@ export function ReviewExplorer({ selectedSentiment }) {
       emotion: row.emotional_themes
         ? row.emotional_themes.split(',')[0].trim()
         : 'None',
-      text: selectedTextColumn ? (row[selectedTextColumn] ?? '') : '',
+      text: selectedTextColumn ? String(row[selectedTextColumn] ?? '') : '',
     }));
   }, [analysisResults, selectedTextColumn]);
 
@@ -112,10 +112,6 @@ export function ReviewExplorer({ selectedSentiment }) {
               className="pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent w-full md:w-64"
             />
           </div>
-          <button className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50">
-            <Filter className="w-4 h-4" />
-            Filters
-          </button>
         </div>
       </div>
 
