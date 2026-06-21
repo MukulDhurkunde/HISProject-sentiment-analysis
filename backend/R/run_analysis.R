@@ -11,7 +11,7 @@ install_if_missing <- function(pkg) {
   if (!requireNamespace(pkg, quietly = TRUE)) {
     cat(sprintf("Installing package '%s'...\n", pkg))
     dir.create(Sys.getenv("R_LIBS_USER"), recursive = TRUE, showWarnings = FALSE)
-    suppressMessages(install.packages(pkg, lib = Sys.getenv("R_LIBS_USER"), repos = "http://cran.rstudio.com/", quiet = TRUE))
+    suppressMessages(install.packages(pkg, lib = Sys.getenv("R_LIBS_USER"), repos = "https://cloud.r-project.org", quiet = TRUE))
   }
 }
 

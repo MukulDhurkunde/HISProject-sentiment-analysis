@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import subprocess
+import asyncio
 import json
 import os
 import tempfile
@@ -122,15 +123,16 @@ async def preprocess_data(request: PreprocessRequest):
         base_dir = os.path.dirname(os.path.abspath(__file__))
         r_script_path = os.path.join(base_dir, "R", "run_preprocessing.R")
         
-        # Call Rscript using the discovered path
-        result = subprocess.run(
+        # Run Rscript in a thread so the event loop stays free for other requests
+        result = await asyncio.to_thread(
+            subprocess.run,
             [RSCRIPT_PATH, r_script_path, infile_path, outfile_path],
             capture_output=True,
             text=True,
             encoding='utf-8',
             errors='replace'
         )
-        
+
         if result.returncode != 0:
             print("R Script Error Output:", result.stderr)
             raise HTTPException(status_code=500, detail=f"R script failed: {result.stderr}")
@@ -171,14 +173,15 @@ async def analyze_data(request: AnalysisRequest):
         base_dir = os.path.dirname(os.path.abspath(__file__))
         r_script_path = os.path.join(base_dir, "R", "run_analysis.R")
         
-        result = subprocess.run(
+        result = await asyncio.to_thread(
+            subprocess.run,
             [RSCRIPT_PATH, r_script_path, infile_path, outfile_path],
             capture_output=True,
             text=True,
             encoding='utf-8',
             errors='replace'
         )
-        
+
         if result.returncode != 0:
             print("R Script Error Output:", result.stderr)
             raise HTTPException(status_code=500, detail=f"R script failed: {result.stderr}")

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Settings, 
   Database,
@@ -70,19 +70,31 @@ export default function AnalysisEnginePage() {
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
+  const abortRef = useRef(null);
+
+  // Cancel any in-flight request when the user navigates away
+  useEffect(() => {
+    return () => { if (abortRef.current) abortRef.current.abort(); };
+  }, []);
 
   const rowCount = parsedData?.rows?.length || 0;
 
   const handleRunAnalysis = async () => {
     if (!parsedData || !selectedTextColumn) return;
 
+    // Cancel any previous in-flight request
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setIsProcessing(true);
     setError(null);
-    
+
     try {
       const response = await fetch('http://localhost:8000/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           df_rows: parsedData.rows,
           text_column: selectedTextColumn,
@@ -102,12 +114,11 @@ export default function AnalysisEnginePage() {
       }
 
       const data = await response.json();
-      
+
       setAnalysisResults(data);
-      
-      // Navigate to the Dashboard
       navigate('/dashboard');
     } catch (err) {
+      if (err.name === 'AbortError') return;
       console.error("Failed to run analysis:", err);
       setError(err.message || "Failed to process full dataset");
     } finally {

@@ -447,14 +447,19 @@ export function ReportModal({ onClose }) {
                     }`}>
                       <p className="font-bold text-slate-900 mb-1">Recommendation</p>
                       <p className="text-slate-700 leading-relaxed">
-                        {ml.accuracy >= 80
-                          ? `The ${MODEL_NAMES[ml.model_name] || ml.model_name} achieved ${ml.accuracy}% accuracy — this is a strong result. You can confidently use this model to label new, unseen data from the same domain without needing manual review for every record.`
-                          : ml.accuracy >= 60
-                          ? `The ${MODEL_NAMES[ml.model_name] || ml.model_name} achieved ${ml.accuracy}% accuracy — a reasonable result for short or informal text. To improve further, consider adding more labelled examples, especially for the under-performing class, or try a different ML model.`
-                          : ml.accuracy >= 40
-                          ? `The ${MODEL_NAMES[ml.model_name] || ml.model_name} achieved ${ml.accuracy}% accuracy — moderate performance. We recommend reviewing the label column for inconsistencies and increasing the dataset size. Trying a different model (e.g. SVM) may also improve results.`
-                          : `The ${MODEL_NAMES[ml.model_name] || ml.model_name} achieved only ${ml.accuracy}% accuracy. Do not use this model for predictions. Check whether the label column contains consistent, meaningful sentiment values and consider uploading a larger or cleaner dataset before re-running ML training.`
-                        }
+                        {(() => {
+                          const dominant = computed?.dominant?.[0];
+                          const dominantPct = computed?.dominantPct;
+                          const acc = ml.accuracy;
+                          const modelName = MODEL_NAMES[ml.model_name] || ml.model_name;
+                          if (dominant === 'Negative')
+                            return `Your audience is more dissatisfied than satisfied. Before drawing conclusions, cross-check the most negative reviews manually — a small number of extreme cases can skew the entire distribution. If the pattern holds, this dataset signals a clear area for improvement. The ${modelName} confirmed this trend at ${acc}% accuracy, meaning it is consistent and not a random result.`;
+                          if (dominant === 'Positive')
+                            return `Sentiment is largely positive (${dominantPct}%), which is a good sign. However, pay close attention to the negative minority — in real-world feedback, a small but vocal negative group often carries the most actionable insight. The ${modelName} reached ${acc}% accuracy, validating that these patterns are reliable and worth acting on.`;
+                          if (dominant === 'Neutral')
+                            return `A large neutral majority usually means the text is too short, too generic, or not opinion-heavy enough. Consider collecting more expressive or targeted responses to get sharper signals from your next dataset. The ${modelName} reached ${acc}% accuracy, reflecting this ambiguity in the data.`;
+                          return `A balanced distribution is ideal for analysis — no single class is drowning out the others. This dataset gives a fair view across all sentiment types and is well-suited for reliable conclusions. The ${modelName} reached ${acc}% accuracy, confirming the patterns are stable and learnable.`;
+                        })()}
                       </p>
                     </div>
                   </div>
