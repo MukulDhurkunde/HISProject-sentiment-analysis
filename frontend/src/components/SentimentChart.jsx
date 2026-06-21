@@ -50,10 +50,21 @@ export function SentimentChart({ selectedSentiment, onSentimentClick }) {
       }
     });
 
-    const pctPositive = Math.round((counts.Positive / total) * 100);
-    const pctNeutral = Math.round((counts.Neutral / total) * 100);
-    // Ensure percentages always sum to exactly 100
-    const pctNegative = 100 - pctPositive - pctNeutral;
+    let pctPositive = Math.round((counts.Positive / total) * 100);
+    let pctNeutral = Math.round((counts.Neutral / total) * 100);
+    let pctNegative = Math.round((counts.Negative / total) * 100);
+
+    // Ensure percentages sum to exactly 100 by adjusting the largest value
+    const sum = pctPositive + pctNeutral + pctNegative;
+    if (sum !== 100 && sum > 0) {
+      if (pctPositive >= pctNeutral && pctPositive >= pctNegative) {
+        pctPositive += (100 - sum);
+      } else if (pctNeutral >= pctPositive && pctNeutral >= pctNegative) {
+        pctNeutral += (100 - sum);
+      } else {
+        pctNegative += (100 - sum);
+      }
+    }
 
     const built = [
       { id: 'Positive', color: COLORS.Positive, pct: pctPositive, start: 0, end: pctPositive },
