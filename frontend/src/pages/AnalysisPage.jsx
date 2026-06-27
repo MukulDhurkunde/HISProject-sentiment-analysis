@@ -38,29 +38,29 @@ const LEXICONS = [
 
 const ML_MODELS = [
   {
-    id: 'naive_bayes',
-    name: 'Naive Bayes',
-    type: 'Probabilistic Classification',
-    description: 'Uses Bayesian statistics for efficient text categorization. Baseline model for large-scale analysis.'
-  },
-  {
     id: 'svm',
     name: 'Support Vector Machine (SVM)',
     type: 'Optimal Boundary Separation',
-    description: 'Finds the optimal hyperplane to separate classes. Ideal for high-accuracy requirements.'
+    description: 'Finds the optimal hyperplane to separate sentiment classes. Fast and highly accurate on text data.'
+  },
+  {
+    id: 'penalized_logistic',
+    name: 'Penalized Logistic Regression',
+    type: 'Regularized Linear Model',
+    description: 'Logistic regression with LASSO penalty. Automatically selects the most predictive words and reduces overfitting.'
   },
   {
     id: 'random_forest',
     name: 'Random Forest',
     type: 'Ensemble Learning',
-    description: 'Builds a multitude of decision trees and merges results. Robust against overfitting.'
+    description: 'Builds hundreds of decision trees and merges their results. Robust against overfitting and handles complex patterns.'
   }
 ];
 
 export default function AnalysisEnginePage() {
   const navigate = useNavigate();
   const { parsedData, selectedTextColumn, labelColumn, analysisConfig, setAnalysisConfig, setAnalysisResults } = useDataset();
-  const { lexicon: selectedLexicon, mlModel: selectedMlModel = 'naive_bayes', sensitivity, themeCount } = analysisConfig || { lexicon: 'afinn', mlModel: 'naive_bayes', sensitivity: 50, themeCount: 8 };
+  const { lexicon: selectedLexicon, mlModel: selectedMlModel = 'svm', sensitivity, themeCount } = analysisConfig || { lexicon: 'afinn', mlModel: 'svm', sensitivity: 50, themeCount: 8 };
 
   const hasLabelColumn = !!labelColumn;
 

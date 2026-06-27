@@ -21,7 +21,7 @@ export function DatasetProvider({ children }) {
   // Analysis configuration
   const [analysisConfig, setAnalysisConfig] = useState({
     lexicon: 'afinn', // afinn, bing, nrc
-    mlModel: 'naive_bayes',
+    mlModel: 'svm',
     sensitivity: 50,
     themeCount: 8
   });

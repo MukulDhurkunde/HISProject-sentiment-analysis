@@ -1,7 +1,8 @@
 # ==============================================================================
 # run_ml_training.R
 # ML training module for sentiment classification.
-# Models: Naive Bayes (e1071), Linear SVM (LiblineaR), Random Forest (ranger)
+# Models: Linear SVM (LiblineaR), Penalized Logistic Regression (glmnet),
+#         Random Forest (ranger)
 # ==============================================================================
 
 CRAN_MIRROR <- "https://cloud.r-project.org"
@@ -77,18 +78,18 @@ train_and_evaluate <- function(texts, labels, ml_model, seed = 42) {
   if (nlevels(labels) < 2) return(list(error = "Cannot train: only one class label found."))
   if (length(texts)  < 10) return(list(error = "Cannot train: fewer than 10 rows."))
 
-  # --- Install and load all packages upfront (unconditionally) ----------------
+  # --- Install and load all packages upfront ----------------------------------
   suppressWarnings(suppressMessages({
     install_if_missing_ml("tm")
     install_if_missing_ml("NLP")
     install_if_missing_ml("slam")
-    install_if_missing_ml("e1071")      # Naive Bayes
+    install_if_missing_ml("LiblineaR")  # Fast linear SVM
+    install_if_missing_ml("glmnet")     # Penalized Logistic Regression
     install_if_missing_ml("ranger")     # Fast parallelized Random Forest
-    install_if_missing_ml("LiblineaR")  # Fast linear SVM for high-dim text
     library(tm)
-    library(e1071)
-    library(ranger)
     library(LiblineaR)
+    library(glmnet)
+    library(ranger)
   }))
 
   # --- Build TF-IDF Document-Term Matrix --------------------------------------
@@ -109,12 +110,12 @@ train_and_evaluate <- function(texts, labels, ml_model, seed = 42) {
   if (ncol(dtm) == 0) return(list(error = "No features remain after text vectorisation."))
   cat(sprintf("DTM: %d docs x %d features\n", nrow(dtm), ncol(dtm)))
 
-  # Convert once to both forms — matrix for LiblineaR/SVM, data frame for NB/ranger
+  # Convert once — matrix for LiblineaR/glmnet, data frame for ranger
   dtm_mat           <- as.matrix(dtm)
   colnames(dtm_mat) <- make.names(colnames(dtm_mat), unique = TRUE)
   dtm_df            <- as.data.frame(dtm_mat)
 
-  # --- Stratified train/test split --------------------------------------------
+  # --- Stratified 80/20 split -------------------------------------------------
   train_idx <- stratified_split(labels, train_ratio = 0.8, seed = seed)
 
   train_mat <- dtm_mat[train_idx, , drop = FALSE]
@@ -132,20 +133,24 @@ train_and_evaluate <- function(texts, labels, ml_model, seed = 42) {
   result <- tryCatch({
     predictions <- NULL
 
-    if (ml_model == "naive_bayes") {
-      # e1071 Naive Bayes — fast probabilistic classifier
-      model       <- naiveBayes(train_df, train_y)
-      predictions <- predict(model, test_df)
-
-    } else if (ml_model == "svm") {
-      # LiblineaR linear SVM — optimized for high-dimensional sparse text (TF-IDF)
-      # type=1: L2-regularized L2-loss SVM (dual) — standard for text classification
+    if (ml_model == "svm") {
+      # LiblineaR linear SVM — optimized for high-dimensional sparse TF-IDF data
+      # type=1: L2-regularized L2-loss SVM (dual)
       model       <- LiblineaR(data = train_mat, target = train_y, type = 1, cost = 1, verbose = FALSE)
       predictions <- predict(model, newx = test_mat)$predictions
 
+    } else if (ml_model == "penalized_logistic") {
+      # glmnet LASSO logistic regression — auto selects most predictive features
+      # Uses cross-validation to find optimal regularization (lambda)
+      glm_family <- if (nlevels(train_y) == 2) "binomial" else "multinomial"
+      set.seed(seed)
+      cv_fit      <- cv.glmnet(x = train_mat, y = train_y, family = glm_family,
+                               alpha = 1, nfolds = 5, type.measure = "class")
+      raw_pred    <- predict(cv_fit, newx = test_mat, s = "lambda.min", type = "class")
+      predictions <- factor(as.vector(raw_pred), levels = levels(train_y))
+
     } else if (ml_model == "random_forest") {
-      # ranger — modern parallelized Random Forest, replaces randomForest package
-      # Uses all available CPU cores, 5-10x faster than randomForest
+      # ranger — modern parallelized Random Forest, robust against overfitting
       model       <- ranger(x = train_df, y = train_y, num.trees = 300,
                             seed = seed, num.threads = NULL, verbose = FALSE)
       predictions <- predict(model, data = test_df)$predictions

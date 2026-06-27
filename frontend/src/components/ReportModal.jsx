@@ -8,8 +8,8 @@ import frankfurtImg from '../assets/Frankfurt_University.png';
 
 const LEXICON_NAMES = { bing: 'Bing Lexicon', afinn: 'AFINN Lexicon', nrc: 'NRC Lexicon' };
 const MODEL_NAMES = {
-  naive_bayes: 'Naive Bayes',
   svm: 'Support Vector Machine (SVM)',
+  penalized_logistic: 'Penalized Logistic Regression',
   random_forest: 'Random Forest',
 };
 const CONFIG_LABELS = {
