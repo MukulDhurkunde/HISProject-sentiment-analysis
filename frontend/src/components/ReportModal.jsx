@@ -59,10 +59,10 @@ export function ReportModal({ onClose }) {
   const computed = useMemo(() => {
     if (!rows.length) return null;
 
-    // 1. Per-class score + length stats
+    // 1. Per-class score + length stats — use original labels when available
     const byClass = { Positive: { scores: [], lengths: [] }, Neutral: { scores: [], lengths: [] }, Negative: { scores: [], lengths: [] } };
     rows.forEach(row => {
-      const c = row.sentiment_label;
+      const c = row.original_sentiment_label || row.sentiment_label;
       const s = Number(row.sentiment_score || 0);
       const wc = wordCount(String(row[textCol] || ''));
       if (c in byClass) {
@@ -86,7 +86,7 @@ export function ReportModal({ onClose }) {
     // 2. Extreme examples
     const enriched = rows.map(row => ({
       score: Number(row.sentiment_score || 0),
-      label: row.sentiment_label,
+      label: row.original_sentiment_label || row.sentiment_label,
       text: String(row[textCol] || ''),
     }));
 
@@ -132,6 +132,14 @@ export function ReportModal({ onClose }) {
       avgPos, avgNeg, lengthDiffPct,
     };
   }, [rows, textCol, insights]);
+
+  // ML agreement with original labels
+  const mlAgreement = useMemo(() => {
+    const eligible = rows.filter(r => r.original_sentiment_label && r.ml_sentiment_label);
+    if (!eligible.length) return null;
+    const agreed = eligible.filter(r => r.original_sentiment_label === r.ml_sentiment_label).length;
+    return { agreed, total: eligible.length, pct: Math.round((agreed / eligible.length) * 100) };
+  }, [rows]);
 
   const pre  = appliedPreprocessConfig || {};
   const preConfig = pre.config || {};
@@ -263,7 +271,7 @@ export function ReportModal({ onClose }) {
               </Section>
 
               {/* ── 2. Sentiment Distribution + Score Statistics ─────────────── */}
-              <Section title="2. Sentiment Distribution & Score Analysis" subtitle="Distribution counts enriched with score and text-length statistics per class">
+              <Section title="2. Sentiment Distribution & Score Analysis" subtitle="Based on your original labels · Lexicon scores and text-length statistics shown per class">
                 {computed ? (
                   <table className="w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
                     <thead>
@@ -435,6 +443,17 @@ export function ReportModal({ onClose }) {
                         <tr className="bg-white">  <td className="px-4 py-2.5 font-medium text-slate-500 border-r border-slate-100">Training Feature</td><td className="px-4 py-2.5">{selectedTextColumn} → {labelColumn}</td></tr>
                         <tr className="bg-slate-50"><td className="px-4 py-2.5 font-medium text-slate-500 border-r border-slate-100">Train/Test Split</td><td className="px-4 py-2.5">80% / 20% stratified</td></tr>
                         <tr className="bg-white">  <td className="px-4 py-2.5 font-medium text-slate-500 border-r border-slate-100">Test Set Size</td><td className="px-4 py-2.5">{ml.test_size} samples</td></tr>
+                        {mlAgreement && (
+                          <tr className="bg-slate-50">
+                            <td className="px-4 py-2.5 font-medium text-slate-500 border-r border-slate-100">Agreement with Your Labels</td>
+                            <td className="px-4 py-2.5">
+                              <span className={`font-bold ${mlAgreement.pct >= 80 ? 'text-emerald-600' : mlAgreement.pct >= 60 ? 'text-amber-600' : 'text-red-600'}`}>
+                                {mlAgreement.pct}%
+                              </span>
+                              <span className="text-slate-500 ml-2">({mlAgreement.agreed} of {mlAgreement.total} reviews matched)</span>
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
 

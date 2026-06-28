@@ -40,12 +40,12 @@ export function ModelMetrics() {
     },
   ];
 
-  const modelDisplayName = ml?.model_name
-    ? ml.model_name
-        .replace('naive_bayes', 'Naive Bayes')
-        .replace('svm', 'SVM')
-        .replace('random_forest', 'Random Forest')
-    : null;
+  const MODEL_LABELS = {
+    svm:                 'Support Vector Machine',
+    penalized_logistic:  'Penalized Logistic Regression',
+    random_forest:       'Random Forest',
+  };
+  const modelDisplayName = ml?.model_name ? (MODEL_LABELS[ml.model_name] || ml.model_name) : null;
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
@@ -69,7 +69,7 @@ export function ModelMetrics() {
       </div>
       <p className="text-xs text-slate-400 mb-4">
         {hasMetrics
-          ? `Evaluated on a held-out test set of ${ml.test_size} samples (80/20 stratified split).`
+          ? `Trained on ${ml.train_size} samples · Evaluated on ${ml.test_size} held-out samples (80/20 stratified split) · Model predictions shown alongside your labels in the Review Explorer.`
           : mlError
           ? `ML training error: ${mlError}`
           : 'Machine learning model training is not yet active. Metrics will appear here once ML models are enabled.'}

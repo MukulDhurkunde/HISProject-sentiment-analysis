@@ -65,6 +65,15 @@ word_counts[word_counts == 0] <- 1 # prevent division by zero
 max_threshold <- if (lexicon == "afinn") 0.15 else 0.05
 threshold <- max_threshold * (1 - (sensitivity / 100))
 
+# Normalize any common sentiment label format to Positive/Negative/Neutral
+normalize_sentiment <- function(lbl) {
+  l <- trimws(tolower(as.character(lbl)))
+  if (l %in% c("positive", "pos", "1", "good", "true"))  return("Positive")
+  if (l %in% c("negative", "neg", "-1", "bad", "false")) return("Negative")
+  if (l %in% c("neutral",  "neu", "0",  "mixed"))        return("Neutral")
+  paste0(toupper(substr(l, 1, 1)), substring(l, 2))
+}
+
 # Initialize output lists
 scores <- numeric(length(texts))
 labels <- character(length(texts))
@@ -112,7 +121,7 @@ if (lexicon == "nrc") {
   # For Bing or AFINN
   raw_scores <- suppressWarnings(suppressMessages(get_sentiment(texts, method = lexicon)))
   scores <- raw_scores / word_counts
-  
+
   for (i in seq_along(scores)) {
     if (scores[i] > 0 && scores[i] >= threshold) {
       labels[i] <- "Positive"
@@ -283,6 +292,11 @@ insights$lexicon_words <- list(
   negative = unique(neg_w)
 )
 
+# Attach normalized original labels so the frontend always has a clean "Your Label" field
+if (!is.null(label_column) && nchar(label_column) > 0 && label_column %in% colnames(df)) {
+  df$original_sentiment_label <- vapply(as.character(df[[label_column]]), normalize_sentiment, character(1))
+}
+
 # === ML MODEL TRAINING (optional) ===
 ml_metrics <- NULL
 ml_error   <- NULL
@@ -304,6 +318,14 @@ if (!is.null(ml_model) && !is.null(label_column) &&
     cat(sprintf("ML Warning: %s\n", ml_error))
   } else {
     ml_metrics <- ml_result
+
+    # Attach ML predictions — reuse normalize_sentiment defined above
+    if (!is.null(ml_result$all_predictions) &&
+        length(ml_result$all_predictions) == nrow(df)) {
+      df$ml_sentiment_label <- vapply(as.character(ml_result$all_predictions),
+                                      normalize_sentiment, character(1))
+    }
+
     cat("ML training complete.\n")
   }
 }

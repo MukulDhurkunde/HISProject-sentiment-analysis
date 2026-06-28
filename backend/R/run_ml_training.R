@@ -1,6 +1,6 @@
 # ==============================================================================
 # run_ml_training.R
-# ML training module for sentiment classification.
+# ML training module — trains on 80%, evaluates on 20%, then predicts on ALL.
 # Models: Linear SVM (LiblineaR), Penalized Logistic Regression (glmnet),
 #         Random Forest (ranger)
 # ==============================================================================
@@ -70,6 +70,7 @@ stratified_split <- function(labels, train_ratio = 0.8, seed = 42) {
 
 # ==============================================================================
 # Main entry point
+# Returns metrics + all_predictions (predictions for every row in the dataset)
 # ==============================================================================
 train_and_evaluate <- function(texts, labels, ml_model, seed = 42) {
 
@@ -83,9 +84,9 @@ train_and_evaluate <- function(texts, labels, ml_model, seed = 42) {
     install_if_missing_ml("tm")
     install_if_missing_ml("NLP")
     install_if_missing_ml("slam")
-    install_if_missing_ml("LiblineaR")  # Fast linear SVM
-    install_if_missing_ml("glmnet")     # Penalized Logistic Regression
-    install_if_missing_ml("ranger")     # Fast parallelized Random Forest
+    install_if_missing_ml("LiblineaR")
+    install_if_missing_ml("glmnet")
+    install_if_missing_ml("ranger")
     library(tm)
     library(LiblineaR)
     library(glmnet)
@@ -110,7 +111,7 @@ train_and_evaluate <- function(texts, labels, ml_model, seed = 42) {
   if (ncol(dtm) == 0) return(list(error = "No features remain after text vectorisation."))
   cat(sprintf("DTM: %d docs x %d features\n", nrow(dtm), ncol(dtm)))
 
-  # Convert once — matrix for LiblineaR/glmnet, data frame for ranger
+  # Convert to matrix and data frame — both needed by different models
   dtm_mat           <- as.matrix(dtm)
   colnames(dtm_mat) <- make.names(colnames(dtm_mat), unique = TRUE)
   dtm_df            <- as.data.frame(dtm_mat)
@@ -127,45 +128,48 @@ train_and_evaluate <- function(texts, labels, ml_model, seed = 42) {
 
   if (length(test_y) < 2) return(list(error = "Test set has fewer than 2 samples. Upload more data."))
 
-  # --- Train & predict --------------------------------------------------------
+  # --- Train, get test predictions, then predict on full dataset --------------
   cat(sprintf("Training %s...\n", ml_model))
 
-  result <- tryCatch({
-    predictions <- NULL
+  train_result <- tryCatch({
 
     if (ml_model == "svm") {
-      # LiblineaR linear SVM — optimized for high-dimensional sparse TF-IDF data
-      # type=1: L2-regularized L2-loss SVM (dual)
-      model       <- LiblineaR(data = train_mat, target = train_y, type = 1, cost = 1, verbose = FALSE)
-      predictions <- predict(model, newx = test_mat)$predictions
+      m          <- LiblineaR(data = train_mat, target = train_y, type = 1, cost = 1, verbose = FALSE)
+      test_preds <- predict(m, newx = test_mat)$predictions
+      full_preds <- predict(m, newx = dtm_mat)$predictions
+      list(test_predictions = test_preds, all_predictions = full_preds)
 
     } else if (ml_model == "penalized_logistic") {
-      # glmnet LASSO logistic regression — auto selects most predictive features
-      # Uses cross-validation to find optimal regularization (lambda)
       glm_family <- if (nlevels(train_y) == 2) "binomial" else "multinomial"
       set.seed(seed)
-      cv_fit      <- cv.glmnet(x = train_mat, y = train_y, family = glm_family,
-                               alpha = 1, nfolds = 5, type.measure = "class")
-      raw_pred    <- predict(cv_fit, newx = test_mat, s = "lambda.min", type = "class")
-      predictions <- factor(as.vector(raw_pred), levels = levels(train_y))
+      cv         <- cv.glmnet(x = train_mat, y = train_y, family = glm_family,
+                              alpha = 1, nfolds = 5, type.measure = "class")
+      test_raw   <- predict(cv, newx = test_mat,  s = "lambda.min", type = "class")
+      full_raw   <- predict(cv, newx = dtm_mat,   s = "lambda.min", type = "class")
+      test_preds <- factor(as.vector(test_raw), levels = levels(train_y))
+      full_preds <- factor(as.vector(full_raw), levels = levels(labels))
+      list(test_predictions = test_preds, all_predictions = full_preds)
 
     } else if (ml_model == "random_forest") {
-      # ranger — modern parallelized Random Forest, robust against overfitting
-      model       <- ranger(x = train_df, y = train_y, num.trees = 300,
-                            seed = seed, num.threads = NULL, verbose = FALSE)
-      predictions <- predict(model, data = test_df)$predictions
+      m          <- ranger(x = train_df, y = train_y, num.trees = 300,
+                           seed = seed, num.threads = NULL, verbose = FALSE)
+      test_preds <- predict(m, data = test_df)$predictions
+      full_preds <- predict(m, data = dtm_df)$predictions
+      list(test_predictions = test_preds, all_predictions = full_preds)
 
     } else {
       stop(sprintf("Unknown model: '%s'", ml_model))
     }
 
-    list(ok = TRUE, predictions = predictions)
-  }, error = function(e) list(ok = FALSE, msg = e$message))
+  }, error = function(e) list(error = e$message))
 
-  if (!result$ok) return(list(error = sprintf("Training failed: %s", result$msg)))
+  if (!is.null(train_result$error)) {
+    return(list(error = sprintf("Training failed: %s", train_result$error)))
+  }
 
-  predictions <- factor(result$predictions, levels = levels(test_y))
-  metrics     <- compute_metrics(predictions, test_y)
+  # --- Metrics on held-out test set -------------------------------------------
+  test_predictions <- factor(train_result$test_predictions, levels = levels(test_y))
+  metrics          <- compute_metrics(test_predictions, test_y)
 
   cat(sprintf(
     "Results — Accuracy: %s%%  F1: %s%%  Precision: %s%%  Recall: %s%%\n",
@@ -173,12 +177,13 @@ train_and_evaluate <- function(texts, labels, ml_model, seed = 42) {
   ))
 
   list(
-    accuracy   = metrics$accuracy,
-    f1_score   = metrics$f1_score,
-    precision  = metrics$precision,
-    recall     = metrics$recall,
-    model_name = ml_model,
-    train_size = length(train_idx),
-    test_size  = length(test_y)
+    accuracy        = metrics$accuracy,
+    f1_score        = metrics$f1_score,
+    precision       = metrics$precision,
+    recall          = metrics$recall,
+    model_name      = ml_model,
+    train_size      = length(train_idx),
+    test_size       = length(test_y),
+    all_predictions = as.character(train_result$all_predictions)
   )
 }
