@@ -156,12 +156,12 @@ export default function AnalysisEnginePage() {
                 {LEXICONS.map((lexicon) => (
                   <div 
                     key={lexicon.id}
-                    onClick={() => setSelectedLexicon(lexicon.id)}
-                    className={`relative p-5 rounded-xl border-2 transition-all cursor-pointer flex flex-col h-full ${
+                    onClick={() => !isProcessing && setSelectedLexicon(lexicon.id)}
+                    className={`relative p-5 rounded-xl border-2 transition-all flex flex-col h-full ${
                       selectedLexicon === lexicon.id 
                         ? 'border-indigo-600 bg-indigo-50/30' 
-                        : 'border-slate-200 bg-white hover:border-indigo-300 hover:bg-slate-50'
-                    }`}
+                        : 'border-slate-200 bg-white'
+                    } ${!isProcessing ? 'cursor-pointer hover:border-indigo-300 hover:bg-slate-50' : 'opacity-60 cursor-not-allowed'}`}
                   >
                     {/* Active Checkmark */}
                     <div className={`absolute top-4 right-4 w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
@@ -221,12 +221,12 @@ export default function AnalysisEnginePage() {
                   {ML_MODELS.map((model) => (
                     <div 
                       key={model.id}
-                      onClick={() => setSelectedMlModel(model.id)}
-                      className={`relative p-5 rounded-xl border-2 transition-all cursor-pointer flex flex-col h-full ${
+                      onClick={() => !isProcessing && setSelectedMlModel(model.id)}
+                      className={`relative p-5 rounded-xl border-2 transition-all flex flex-col h-full ${
                         selectedMlModel === model.id 
                           ? 'border-indigo-600 bg-indigo-50/30' 
-                          : 'border-slate-200 bg-white hover:border-indigo-300 hover:bg-slate-50'
-                      }`}
+                          : 'border-slate-200 bg-white'
+                      } ${!isProcessing ? 'cursor-pointer hover:border-indigo-300 hover:bg-slate-50' : 'opacity-60 cursor-not-allowed'}`}
                     >
                       {/* Active Checkmark */}
                       <div className={`absolute top-4 right-4 w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
@@ -277,7 +277,8 @@ export default function AnalysisEnginePage() {
                       max="100" 
                       value={sensitivity}
                       onChange={(e) => setSensitivity(Number(e.target.value))}
-                      className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                      disabled={isProcessing}
+                      className={`w-full h-2 bg-slate-200 rounded-lg appearance-none accent-indigo-600 ${isProcessing ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
                     />
                     <div className="flex justify-between text-xs font-medium text-slate-400 mt-2 absolute w-full bottom-0">
                       <span>Strict</span>

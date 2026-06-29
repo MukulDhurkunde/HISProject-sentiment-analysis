@@ -27,6 +27,7 @@ export default function IngestionPage() {
   const {
     fileInfo, setFileInfo,
     parsedData, setParsedData,
+    originalData, setOriginalData,
     selectedTextColumn, setSelectedTextColumn,
     labelColumn, setLabelColumn,
     parseError, setParseError,
@@ -129,6 +130,7 @@ export default function IngestionPage() {
           if (results.data && results.data.length > 0) {
             const columns = results.meta.fields || Object.keys(results.data[0]);
             setParsedData({ columns, rows: results.data });
+            setOriginalData({ columns, rows: results.data });
           } else {
             setParseError('The file appears to be empty.');
           }
@@ -151,6 +153,7 @@ export default function IngestionPage() {
           if (jsonData.length > 0) {
             const columns = Object.keys(jsonData[0]);
             setParsedData({ columns, rows: jsonData });
+            setOriginalData({ columns, rows: jsonData });
           } else {
             setParseError('The Excel sheet appears to be empty.');
           }
@@ -174,6 +177,7 @@ export default function IngestionPage() {
           if (arr.length > 0) {
             const columns = Object.keys(arr[0]);
             setParsedData({ columns, rows: arr });
+            setOriginalData({ columns, rows: arr });
           } else {
             setParseError('The JSON file appears to be empty.');
           }

@@ -9,6 +9,9 @@ export function DatasetProvider({ children }) {
   // Parsed data from the uploaded file
   const [parsedData, setParsedData] = useState(null); // { columns: string[], rows: object[] }
 
+  // Original pristine data for reverting preprocessing
+  const [originalData, setOriginalData] = useState(null);
+
   // Selected text column for preprocessing (single string)
   const [selectedTextColumn, setSelectedTextColumn] = useState('');
 
@@ -40,6 +43,8 @@ export function DatasetProvider({ children }) {
     setFileInfo,
     parsedData,
     setParsedData,
+    originalData,
+    setOriginalData,
     selectedTextColumn,
     setSelectedTextColumn,
     labelColumn,

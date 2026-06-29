@@ -19,14 +19,14 @@ import {
 
 export default function PreprocessingPage() {
   const navigate = useNavigate();
-  const { parsedData, selectedTextColumn, setParsedData, setAppliedPreprocessConfig } = useDataset();
-  const [missingHandling, setMissingHandling] = useState('');
+  const { parsedData, originalData, selectedTextColumn, setParsedData, setAppliedPreprocessConfig, appliedPreprocessConfig } = useDataset();
+  const [missingHandling, setMissingHandling] = useState(appliedPreprocessConfig?.missingHandling || '');
 
   // Whether a text column was selected from the Ingestion Hub
   const hasTextColumn = !!selectedTextColumn;
 
   // Normalization Toggles
-  const [config, setConfig] = useState({
+  const [config, setConfig] = useState(appliedPreprocessConfig?.config || {
     lowercase: false,
     removeUrlsHtml: false,
     stopwords: false,
@@ -46,7 +46,8 @@ export default function PreprocessingPage() {
 
   // Sync with backend on config changes
   useEffect(() => {
-    if (!parsedData || !hasTextColumn) {
+    const dataToProcess = originalData || parsedData;
+    if (!dataToProcess || !hasTextColumn) {
       setApiData(null);
       return;
     }
@@ -56,7 +57,7 @@ export default function PreprocessingPage() {
       setError(null);
       try {
         // Only send first 20 rows for live preview (performance optimization)
-        const previewRows = parsedData.rows.slice(0, 20);
+        const previewRows = dataToProcess.rows.slice(0, 20);
         const response = await fetch('http://localhost:8000/api/preprocess', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -84,9 +85,10 @@ export default function PreprocessingPage() {
     }, 500); // Debounce to prevent spamming backend
 
     return () => clearTimeout(timeoutId);
-  }, [parsedData, selectedTextColumn, missingHandling, config, hasTextColumn]);
+  }, [originalData, parsedData, selectedTextColumn, missingHandling, config, hasTextColumn]);
 
-  const totalRows = parsedData?.rows?.length || 0;
+  const dataToProcess = originalData || parsedData;
+  const totalRows = dataToProcess?.rows?.length || 0;
   const stats = {
     cleanedRecords: totalRows.toLocaleString(),
     vocabSize: apiData?.stats?.vocab_size ?? 0,
@@ -108,7 +110,8 @@ export default function PreprocessingPage() {
   };
 
   const handleApplyTransformations = async () => {
-    if (!parsedData || !hasTextColumn) return;
+    const dataToProcess = originalData || parsedData;
+    if (!dataToProcess || !hasTextColumn) return;
 
     setIsApplying(true);
     setError(null);
@@ -119,7 +122,7 @@ export default function PreprocessingPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          df_rows: parsedData.rows,
+          df_rows: dataToProcess.rows,
           columns: [selectedTextColumn],
           missing_strategy: missingHandling || "skip",
           config: config
@@ -134,14 +137,14 @@ export default function PreprocessingPage() {
       const data = await response.json();
 
       setParsedData({
-        ...parsedData,
+        ...dataToProcess,
         rows: data.processed_df
       });
 
       setAppliedPreprocessConfig({
         config,
         missingHandling,
-        originalCount: parsedData.rows.length,
+        originalCount: dataToProcess.rows.length,
         processedCount: data.processed_df?.length ?? 0,
         vocabSize: data.stats?.vocab_size ?? 0,
         noiseReduction: data.stats?.noise_reduction ?? 0,

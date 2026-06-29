@@ -32,9 +32,9 @@ export function SentimentChart({ selectedSentiment, onSentimentClick }) {
     [analysisResults]
   );
 
-  const { segments, majorityPct } = useMemo(() => {
+  const { segments, majoritySentiment } = useMemo(() => {
     if (!analysisResults?.processed_rows?.length) {
-      return { segments: [], majorityPct: 0 };
+      return { segments: [], majoritySentiment: 'N/A' };
     }
 
     const rows  = analysisResults.processed_rows;
@@ -63,7 +63,8 @@ export function SentimentChart({ selectedSentiment, onSentimentClick }) {
       { id: 'Negative', color: COLORS.Negative, pct: pctNegative, start: pctPositive + pctNeutral, end: 100 },
     ];
 
-    return { segments: built, majorityPct: Math.max(pctPositive, pctNeutral, pctNegative) };
+    const majoritySentiment = built.reduce((max, seg) => seg.pct > max.pct ? seg : max, built[0]).id;
+    return { segments: built, majoritySentiment };
   }, [analysisResults]);
 
   if (!analysisResults) {
@@ -118,7 +119,7 @@ export function SentimentChart({ selectedSentiment, onSentimentClick }) {
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
             <span className="text-xs font-semibold text-slate-500">Overall</span>
-            <span className="text-2xl font-bold text-slate-900">{majorityPct}%</span>
+            <span className="text-xl font-bold text-slate-900">{majoritySentiment}</span>
           </div>
         </div>
 
