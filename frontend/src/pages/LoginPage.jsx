@@ -1,28 +1,41 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Network, Eye, EyeOff, Lock, User } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import frankfurtImg from '../assets/Frankfurt_University.png';
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { login, isAuthenticated } = useAuth();
 
   const [error, setError] = useState('');
 
-  const handleLogin = (e) => {
+  // If already authenticated, redirect to ingestion
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/ingestion', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
+
+  const handleLogin = async (e) => {
     e.preventDefault();
+    setError('');
+    setIsLoading(true);
+
     const username = e.target.username.value;
     const password = e.target.password.value;
 
-    if (
-      (username === 'admin1' && password === 'franca@15') ||
-      (username === 'user1' && password === 'space@15')
-    ) {
-      localStorage.setItem('username', username);
+    const result = await login(username, password);
+
+    if (result.success) {
       navigate('/ingestion');
     } else {
-      setError('Invalid username or password');
+      setError(result.error);
     }
+
+    setIsLoading(false);
   };
 
   return (
@@ -80,7 +93,8 @@ export default function LoginPage() {
                     name="username"
                     type="text"
                     required
-                    className="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-lg bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent transition-colors sm:text-sm"
+                    disabled={isLoading}
+                    className="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-lg bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent transition-colors sm:text-sm disabled:opacity-60"
                     placeholder="Enter your username"
                   />
                 </div>
@@ -100,7 +114,8 @@ export default function LoginPage() {
                     name="password"
                     type={showPassword ? 'text' : 'password'}
                     required
-                    className="block w-full pl-10 pr-10 py-3 border border-slate-300 rounded-lg bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent transition-colors sm:text-sm"
+                    disabled={isLoading}
+                    className="block w-full pl-10 pr-10 py-3 border border-slate-300 rounded-lg bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent transition-colors sm:text-sm disabled:opacity-60"
                     placeholder="••••••••"
                   />
                   <button
@@ -130,9 +145,17 @@ export default function LoginPage() {
             <div>
               <button
                 type="submit"
-                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600 transition-colors"
+                disabled={isLoading}
+                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Sign In
+                {isLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Signing In…
+                  </div>
+                ) : (
+                  'Sign In'
+                )}
               </button>
             </div>
           </form>

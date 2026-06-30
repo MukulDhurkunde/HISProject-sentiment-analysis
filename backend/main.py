@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
@@ -10,12 +10,21 @@ import tempfile
 import glob
 import shutil
 
+from auth import (
+    LoginRequest,
+    TokenResponse,
+    UserInfo,
+    authenticate_user,
+    create_access_token,
+    get_current_user,
+)
+
 app = FastAPI(title="Sentiment Analysis Preprocessing API")
 
 # Configure CORS for React frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # In production, restrict this to frontend URL
+    allow_origins=["http://localhost:5173"],  # Vite dev server
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -95,8 +104,40 @@ class AnalysisRequest(BaseModel):
     ml_model: Optional[str] = None
     label_column: Optional[str] = None
 
+
+# ── Authentication Endpoints ─────────────────────────────────────────────────
+
+@app.post("/api/login", response_model=TokenResponse)
+async def login(request: LoginRequest):
+    """Authenticate user and return a JWT access token."""
+    user = authenticate_user(request.username, request.password)
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid username or password",
+        )
+
+    access_token = create_access_token(data={"sub": user["username"]})
+    return TokenResponse(
+        access_token=access_token,
+        username=user["username"],
+        role=user["role"],
+    )
+
+
+@app.get("/api/me")
+async def get_me(current_user: UserInfo = Depends(get_current_user)):
+    """Return the currently authenticated user's info."""
+    return {"username": current_user.username, "role": current_user.role}
+
+
+# ── Protected Data Endpoints ─────────────────────────────────────────────────
+
 @app.post("/api/preprocess")
-async def preprocess_data(request: PreprocessRequest):
+async def preprocess_data(
+    request: PreprocessRequest,
+    current_user: UserInfo = Depends(get_current_user),
+):
     if not RSCRIPT_PATH:
         raise HTTPException(
             status_code=503,
@@ -153,7 +194,10 @@ async def preprocess_data(request: PreprocessRequest):
             os.remove(outfile_path)
 
 @app.post("/api/analyze")
-async def analyze_data(request: AnalysisRequest):
+async def analyze_data(
+    request: AnalysisRequest,
+    current_user: UserInfo = Depends(get_current_user),
+):
     if not RSCRIPT_PATH:
         raise HTTPException(
             status_code=503,

@@ -1,15 +1,24 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Database, Sliders, Activity, PieChart, LogOut } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import frankfurtImg from '../assets/Frankfurt_University.png';
 
 export default function Sidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+
   const menuItems = [
     { path: '/ingestion', name: 'Data Ingestion', icon: Database },
     { path: '/preprocessing', name: 'Pre-Processing', icon: Sliders },
     { path: '/analysis', name: 'Analysis Engine', icon: Activity },
     { path: '/dashboard', name: 'Insights Dashboard', icon: PieChart },
   ];
+
+  const handleLogout = () => {
+    logout();
+    navigate('/', { replace: true });
+  };
 
   return (
     <aside className="w-64 bg-slate-900 flex flex-col h-full border-r border-slate-800 shrink-0">
@@ -51,14 +60,13 @@ export default function Sidebar() {
       </div>
 
       <div className="mt-auto p-4 border-t border-slate-800/50">
-        <a 
-          href="/" 
-          onClick={() => localStorage.removeItem('username')}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors font-medium text-sm"
+        <button 
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors font-medium text-sm"
         >
           <LogOut className="w-4 h-4" />
           Log out
-        </a>
+        </button>
       </div>
     </aside>
   );

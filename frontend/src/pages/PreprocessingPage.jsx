@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDataset } from '../context/DatasetContext';
+import { authFetch } from '../utils/api';
 import { 
   BarChart3, 
   Settings, 
@@ -58,7 +59,7 @@ export default function PreprocessingPage() {
       try {
         // Only send first 20 rows for live preview (performance optimization)
         const previewRows = dataToProcess.rows.slice(0, 20);
-        const response = await fetch('http://localhost:8000/api/preprocess', {
+        const response = await authFetch('http://localhost:8000/api/preprocess', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -118,7 +119,7 @@ export default function PreprocessingPage() {
 
     try {
       // Send ALL rows for full processing
-      const response = await fetch('http://localhost:8000/api/preprocess', {
+      const response = await authFetch('http://localhost:8000/api/preprocess', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

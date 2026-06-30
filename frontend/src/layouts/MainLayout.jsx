@@ -1,9 +1,11 @@
 import React from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 
 export default function MainLayout() {
   const location = useLocation();
+  const { user } = useAuth();
 
   const getPageTitle = () => {
     switch (location.pathname) {
@@ -43,6 +45,8 @@ export default function MainLayout() {
     }
   };
 
+  const displayName = user?.username || 'User';
+
   return (
     <div className="flex h-screen bg-[#f8fafc]">
       <Sidebar />
@@ -52,9 +56,9 @@ export default function MainLayout() {
           <div className="flex items-center text-slate-500">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm shadow-inner shadow-indigo-200/50 uppercase">
-                {localStorage.getItem('username')?.slice(0, 2) || 'JD'}
+                {displayName.slice(0, 2)}
               </div>
-              <span className="text-sm font-medium text-slate-700 hidden sm:block">{localStorage.getItem('username') || 'Jane Doe'}</span>
+              <span className="text-sm font-medium text-slate-700 hidden sm:block">{displayName}</span>
             </div>
           </div>
         </header>

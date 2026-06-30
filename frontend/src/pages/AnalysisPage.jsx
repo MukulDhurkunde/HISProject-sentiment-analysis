@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDataset } from '../context/DatasetContext';
+import { authFetch } from '../utils/api';
 
 const LEXICONS = [
   {
@@ -91,7 +92,7 @@ export default function AnalysisEnginePage() {
     setError(null);
 
     try {
-      const response = await fetch('http://localhost:8000/api/analyze', {
+      const response = await authFetch('http://localhost:8000/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
