@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Search, Cpu } from 'lucide-react';
+import { Search, Cpu, AlertTriangle, X } from 'lucide-react';
 import { useDataset } from '../context/DatasetContext';
 
 const ROWS_PER_PAGE = 10;
@@ -10,14 +10,14 @@ const POLARITY_STYLES = {
   Neutral:  'bg-slate-100 text-slate-600 border-slate-200',
 };
 
-export function ReviewExplorer({ selectedSentiment }) {
+export function ReviewExplorer({ selectedSentiment, showMislabeled, onClearMislabeled }) {
   const { analysisResults, selectedTextColumn, analysisConfig } = useDataset();
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(0);
 
   const isNrc = analysisConfig?.lexicon === 'nrc';
 
-  useEffect(() => { setCurrentPage(0); }, [searchQuery, selectedSentiment]);
+  useEffect(() => { setCurrentPage(0); }, [searchQuery, selectedSentiment, showMislabeled]);
 
   const hasOriginalLabels = useMemo(() =>
     analysisResults?.processed_rows?.some(r => r.original_sentiment_label),
@@ -48,19 +48,32 @@ export function ReviewExplorer({ selectedSentiment }) {
 
   const rows = useMemo(() => {
     if (!analysisResults?.processed_rows) return [];
-    return analysisResults.processed_rows.map((row, index) => ({
-      id:               `ROW-${String(index + 1).padStart(3, '0')}`,
-      originalPolarity: row.original_sentiment_label || null,
-      lexiconPolarity:  row.sentiment_label,
-      mlPolarity:       row.ml_sentiment_label || null,
-      emotion:          row.emotional_themes ? row.emotional_themes.split(',')[0].trim() : 'None',
-      text:             selectedTextColumn ? String(row[selectedTextColumn] ?? '') : '',
-    }));
+    return analysisResults.processed_rows.map((row, index) => {
+      const raw = selectedTextColumn ? row[selectedTextColumn] : null;
+      const rawStr = raw == null ? '' : String(raw).trim();
+      const isMissing = rawStr === '' || rawStr === '[No Review]';
+      return {
+        id:               `ROW-${String(index + 1).padStart(3, '0')}`,
+        originalPolarity: row.original_sentiment_label || null,
+        lexiconPolarity:  row.sentiment_label,
+        mlPolarity:       row.ml_sentiment_label || null,
+        emotion:          row.emotional_themes ? row.emotional_themes.split(',')[0].trim() : 'None',
+        text:             isMissing ? '' : rawStr,
+        isMissing,
+      };
+    });
   }, [analysisResults, selectedTextColumn]);
 
   const filteredRows = useMemo(() => {
-    let result = rows;
-    if (selectedSentiment) {
+    let result = rows.filter(r => !r.isMissing);
+    if (showMislabeled) {
+      result = result.filter(r =>
+        r.originalPolarity &&
+        r.mlPolarity &&
+        r.mlPolarity !== r.originalPolarity &&
+        r.lexiconPolarity !== r.originalPolarity
+      );
+    } else if (selectedSentiment) {
       result = result.filter(r =>
         (r.originalPolarity || r.lexiconPolarity) === selectedSentiment
       );
@@ -70,7 +83,7 @@ export function ReviewExplorer({ selectedSentiment }) {
       result = result.filter(r => r.text.toLowerCase().includes(q));
     }
     return result;
-  }, [rows, selectedSentiment, searchQuery]);
+  }, [rows, selectedSentiment, showMislabeled, searchQuery]);
 
   const totalFiltered = filteredRows.length;
   const totalPages    = Math.max(1, Math.ceil(totalFiltered / ROWS_PER_PAGE));
@@ -130,6 +143,19 @@ export function ReviewExplorer({ selectedSentiment }) {
           </div>
         </div>
       </div>
+
+      {/* Mislabeled filter banner */}
+      {showMislabeled && (
+        <div className="px-6 py-2.5 bg-amber-50 border-b border-amber-200 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs text-amber-700 font-medium">
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+            Showing rows where lexicon &amp; ML both disagree with the original label
+          </div>
+          <button onClick={onClearMislabeled} className="text-amber-500 hover:text-amber-700 transition-colors">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Table */}
       <div className="overflow-x-auto">

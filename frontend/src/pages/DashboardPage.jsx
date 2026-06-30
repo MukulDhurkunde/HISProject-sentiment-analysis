@@ -13,7 +13,18 @@ import { useDataset } from '../context/DatasetContext';
 
 export default function InsightsDashboardPage() {
   const [selectedSentiment, setSelectedSentiment] = useState(null);
+  const [showMislabeled, setShowMislabeled] = useState(false);
   const [showReport, setShowReport] = useState(false);
+
+  const handleSentimentClick = (s) => {
+    setSelectedSentiment(s);
+    setShowMislabeled(false);
+  };
+
+  const handleMislabeledClick = () => {
+    setShowMislabeled(prev => !prev);
+    setSelectedSentiment(null);
+  };
   const { analysisConfig, analysisResults } = useDataset();
   const selectedLexicon = analysisConfig?.lexicon?.toUpperCase() || 'NRC';
 
@@ -29,7 +40,9 @@ export default function InsightsDashboardPage() {
           <div className="col-span-3">
             <SentimentChart
               selectedSentiment={selectedSentiment}
-              onSentimentClick={setSelectedSentiment}
+              onSentimentClick={handleSentimentClick}
+              showMislabeled={showMislabeled}
+              onMislabeledClick={handleMislabeledClick}
             />
           </div>
         </div>
@@ -57,7 +70,7 @@ export default function InsightsDashboardPage() {
           </div>
         )}
 
-        <ReviewExplorer selectedSentiment={selectedSentiment} />
+        <ReviewExplorer selectedSentiment={selectedSentiment} showMislabeled={showMislabeled} onClearMislabeled={() => setShowMislabeled(false)} />
       </div>
 
       {/* Generate Report bar — shown only after analysis runs */}

@@ -76,8 +76,13 @@ train_and_evaluate <- function(texts, labels, ml_model, seed = 42) {
 
   labels <- as.factor(labels)
 
-  if (nlevels(labels) < 2) return(list(error = "Cannot train: only one class label found."))
-  if (length(texts)  < 10) return(list(error = "Cannot train: fewer than 10 rows."))
+  # Rows with empty / NA labels are excluded from train-test split
+  # but the model still predicts for ALL rows using text features
+  valid_mask   <- !is.na(labels) & nchar(trimws(as.character(labels))) > 0
+  valid_labels <- droplevels(labels[valid_mask])
+
+  if (nlevels(valid_labels) < 2) return(list(error = "Cannot train: only one class label found."))
+  if (sum(valid_mask)        < 10) return(list(error = "Cannot train: fewer than 10 rows with valid labels."))
 
   # --- Install and load all packages upfront ----------------------------------
   suppressWarnings(suppressMessages({
@@ -109,24 +114,29 @@ train_and_evaluate <- function(texts, labels, ml_model, seed = 42) {
   }
 
   if (ncol(dtm) == 0) return(list(error = "No features remain after text vectorisation."))
-  cat(sprintf("DTM: %d docs x %d features\n", nrow(dtm), ncol(dtm)))
 
   # Convert to matrix and data frame — both needed by different models
   dtm_mat           <- as.matrix(dtm)
   colnames(dtm_mat) <- make.names(colnames(dtm_mat), unique = TRUE)
   dtm_df            <- as.data.frame(dtm_mat)
 
-  # --- Stratified 80/20 split -------------------------------------------------
-  train_idx <- stratified_split(labels, train_ratio = 0.8, seed = seed)
+  # --- Stratified 80/20 split (valid-label rows only) -------------------------
+  all_valid_idx <- which(valid_mask)                                     # global positions
+  local_train   <- stratified_split(valid_labels, train_ratio = 0.8, seed = seed)
+  train_idx     <- all_valid_idx[local_train]                            # global train positions
+  test_idx      <- all_valid_idx[-local_train]                           # global test positions
 
   train_mat <- dtm_mat[train_idx, , drop = FALSE]
-  test_mat  <- dtm_mat[-train_idx, , drop = FALSE]
+  test_mat  <- dtm_mat[test_idx,  , drop = FALSE]
   train_df  <- dtm_df[train_idx,  , drop = FALSE]
-  test_df   <- dtm_df[-train_idx, , drop = FALSE]
-  train_y   <- labels[train_idx]
-  test_y    <- labels[-train_idx]
+  test_df   <- dtm_df[test_idx,   , drop = FALSE]
+  train_y   <- valid_labels[local_train]
+  test_y    <- valid_labels[-local_train]
 
   if (length(test_y) < 2) return(list(error = "Test set has fewer than 2 samples. Upload more data."))
+
+  cat(sprintf("DTM: %d docs x %d features · Training on %d valid-label rows\n",
+              nrow(dtm_mat), ncol(dtm_mat), sum(valid_mask)))
 
   # --- Train, get test predictions, then predict on full dataset --------------
   cat(sprintf("Training %s...\n", ml_model))
@@ -183,7 +193,7 @@ train_and_evaluate <- function(texts, labels, ml_model, seed = 42) {
     recall          = metrics$recall,
     model_name      = ml_model,
     train_size      = length(train_idx),
-    test_size       = length(test_y),
+    test_size       = length(test_idx),
     all_predictions = as.character(train_result$all_predictions)
   )
 }

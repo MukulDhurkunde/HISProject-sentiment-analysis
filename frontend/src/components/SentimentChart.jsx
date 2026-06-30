@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useDataset } from '../context/DatasetContext';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, AlertTriangle } from 'lucide-react';
 
 function describeArc(cx, cy, r, startPercent, endPercent) {
   if (endPercent - startPercent === 100) endPercent -= 0.001;
@@ -22,7 +22,7 @@ const COLORS = {
   Negative: '#ef4444',
 };
 
-export function SentimentChart({ selectedSentiment, onSentimentClick }) {
+export function SentimentChart({ selectedSentiment, onSentimentClick, showMislabeled, onMislabeledClick }) {
   const { analysisResults } = useDataset();
   const cx = 18, cy = 18, radius = 14;
 
@@ -31,6 +31,17 @@ export function SentimentChart({ selectedSentiment, onSentimentClick }) {
     analysisResults?.processed_rows?.some(row => row.original_sentiment_label),
     [analysisResults]
   );
+
+  const flaggedCount = useMemo(() => {
+    if (!analysisResults?.processed_rows) return 0;
+    return analysisResults.processed_rows.filter(r =>
+      r.original_sentiment_label &&
+      r.ml_sentiment_label &&
+      r.sentiment_label &&
+      r.ml_sentiment_label !== r.original_sentiment_label &&
+      r.sentiment_label !== r.original_sentiment_label
+    ).length;
+  }, [analysisResults]);
 
   const { segments, majoritySentiment } = useMemo(() => {
     if (!analysisResults?.processed_rows?.length) {
@@ -136,6 +147,22 @@ export function SentimentChart({ selectedSentiment, onSentimentClick }) {
               {seg.id} ({seg.pct}%)
             </button>
           ))}
+          {flaggedCount > 0 && hasOriginalLabels && (
+            <button
+              onClick={onMislabeledClick}
+              className={`mt-1 pt-2 border-t border-slate-100 flex items-start gap-1.5 text-xs text-left max-w-[160px] transition-colors ${
+                showMislabeled
+                  ? 'text-amber-700 font-semibold'
+                  : 'text-amber-600 hover:text-amber-700'
+              }`}
+            >
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+              <span>
+                {flaggedCount} row{flaggedCount !== 1 ? 's' : ''} potentially mislabeled — lexicon &amp; ML both disagree with original label
+                {showMislabeled && <span className="block text-amber-500 font-normal">Click to clear</span>}
+              </span>
+            </button>
+          )}
         </div>
       </div>
     </div>
