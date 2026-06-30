@@ -3,7 +3,7 @@ Authentication module for Sentiment Analyzer API.
 Provides JWT-based authentication with bcrypt-hashed passwords.
 """
 
-import secrets
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -15,7 +15,12 @@ from pydantic import BaseModel
 
 
 # ── Configuration ────────────────────────────────────────────────────────────
-SECRET_KEY = secrets.token_hex(32)  # Generated at startup
+# Use a stable key so that server restarts (--reload) don't invalidate tokens.
+# In production, set the SENTIMENT_APP_SECRET_KEY environment variable.
+SECRET_KEY = os.environ.get(
+    "SENTIMENT_APP_SECRET_KEY",
+    "his-project-sentiment-analyzer-dev-secret-key-2026"
+)
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
