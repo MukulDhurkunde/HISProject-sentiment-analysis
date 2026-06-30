@@ -26,7 +26,8 @@ export function SentimentChart({ selectedSentiment, onSentimentClick, showMislab
   const { analysisResults } = useDataset();
   const cx = 18, cy = 18, radius = 14;
 
-  // Distribution uses original user labels when available, falls back to lexicon
+  // Distribution strictly uses lexicon labels
+  // (Original user labels are ignored for the pie chart, but tracked for mislabeling)
   const hasOriginalLabels = useMemo(() =>
     analysisResults?.processed_rows?.some(row => row.original_sentiment_label),
     [analysisResults]
@@ -53,7 +54,7 @@ export function SentimentChart({ selectedSentiment, onSentimentClick, showMislab
 
     const counts = { Positive: 0, Neutral: 0, Negative: 0 };
     rows.forEach((row) => {
-      const label = row.original_sentiment_label || row.sentiment_label;
+      const label = row.sentiment_label;
       if (label && label in counts) counts[label] += 1;
     });
 
@@ -94,17 +95,10 @@ export function SentimentChart({ selectedSentiment, onSentimentClick, showMislab
           <h3 className="text-sm font-semibold text-slate-900">Sentiment Distribution</h3>
           <p className="text-xs text-slate-500 mt-0.5">Click a segment to filter the Review Explorer</p>
         </div>
-        {hasOriginalLabels ? (
-          <span className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-md border border-emerald-200">
-            <BookOpen className="w-3.5 h-3.5" />
-            Labels
-          </span>
-        ) : (
-          <span className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 bg-slate-100 text-slate-500 rounded-md border border-slate-200">
-            <BookOpen className="w-3.5 h-3.5" />
-            Lexicon
-          </span>
-        )}
+        <span className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 bg-slate-100 text-slate-500 rounded-md border border-slate-200">
+          <BookOpen className="w-3.5 h-3.5" />
+          Lexicon
+        </span>
       </div>
 
       <div className="flex-1 flex items-center justify-center gap-10">

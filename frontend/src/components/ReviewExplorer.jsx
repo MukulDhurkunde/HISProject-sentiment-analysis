@@ -75,7 +75,7 @@ export function ReviewExplorer({ selectedSentiment, showMislabeled, onClearMisla
       );
     } else if (selectedSentiment) {
       result = result.filter(r =>
-        (r.originalPolarity || r.lexiconPolarity) === selectedSentiment
+        r.lexiconPolarity === selectedSentiment
       );
     }
     if (searchQuery.trim()) {

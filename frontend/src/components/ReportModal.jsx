@@ -59,10 +59,10 @@ export function ReportModal({ onClose }) {
   const computed = useMemo(() => {
     if (!rows.length) return null;
 
-    // 1. Per-class score + length stats — use original labels when available
+    // 1. Per-class score + length stats — strictly use lexicon labels
     const byClass = { Positive: { scores: [], lengths: [] }, Neutral: { scores: [], lengths: [] }, Negative: { scores: [], lengths: [] } };
     rows.forEach(row => {
-      const c = row.original_sentiment_label || row.sentiment_label;
+      const c = row.sentiment_label;
       const s = Number(row.sentiment_score || 0);
       const wc = wordCount(String(row[textCol] || ''));
       if (c in byClass) {
@@ -86,7 +86,7 @@ export function ReportModal({ onClose }) {
     // 2. Extreme examples
     const enriched = rows.map(row => ({
       score: Number(row.sentiment_score || 0),
-      label: row.original_sentiment_label || row.sentiment_label,
+      label: row.sentiment_label,
       text: String(row[textCol] || ''),
     }));
 
@@ -271,7 +271,7 @@ export function ReportModal({ onClose }) {
               </Section>
 
               {/* ── 2. Sentiment Distribution + Score Statistics ─────────────── */}
-              <Section title="2. Sentiment Distribution & Score Analysis" subtitle="Based on your original labels · Lexicon scores and text-length statistics shown per class">
+              <Section title="2. Sentiment Distribution & Score Analysis" subtitle="Lexicon scores and text-length statistics shown per class">
                 {computed ? (
                   <table className="w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
                     <thead>
