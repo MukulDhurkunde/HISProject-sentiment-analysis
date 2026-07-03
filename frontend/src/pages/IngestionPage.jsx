@@ -32,6 +32,8 @@ export default function IngestionPage() {
     labelColumn, setLabelColumn,
     parseError, setParseError,
     setIngestionStats,
+    setAppliedPreprocessConfig,
+    setAnalysisResults
   } = useDataset();
 
   // Local-only ephemeral state
@@ -117,6 +119,9 @@ export default function IngestionPage() {
     setSelectedTextColumn(''); // reset column selections for new file
     setLabelColumn('');
     setCurrentPage(0); // reset pagination for new file
+    setAppliedPreprocessConfig(null); // clear old preprocessing config
+    setAnalysisResults(null); // clear old analysis results
+    setIngestionStats(null); // clear old stats
 
     const extension = file.name.split('.').pop().toLowerCase();
 
