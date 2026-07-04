@@ -55,11 +55,7 @@ if (lexicon == "nrc") {
 }
 
 # Append scores, labels, and emotional themes to df
-if (lexicon == "nrc") {
-  df$sentiment_score <- nrc_data$positive - nrc_data$negative
-} else {
-  df$sentiment_score <- suppressWarnings(suppressMessages(get_sentiment(texts, method = lexicon)))
-}
+  df$sentiment_score <- raw_scores
 df$sentiment_label <- labels
 
 if (lexicon == "nrc") {

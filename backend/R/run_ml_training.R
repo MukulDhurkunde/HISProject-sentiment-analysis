@@ -157,7 +157,7 @@ train_and_evaluate <- function(texts, labels, ml_model, seed = 42) {
       test_raw   <- predict(cv, newx = test_mat,  s = "lambda.min", type = "class")
       full_raw   <- predict(cv, newx = dtm_mat,   s = "lambda.min", type = "class")
       test_preds <- factor(as.vector(test_raw), levels = levels(train_y))
-      full_preds <- factor(as.vector(full_raw), levels = levels(labels))
+      full_preds <- factor(as.vector(full_raw), levels = levels(train_y))
       list(test_predictions = test_preds, all_predictions = full_preds)
 
     } else if (ml_model == "random_forest") {

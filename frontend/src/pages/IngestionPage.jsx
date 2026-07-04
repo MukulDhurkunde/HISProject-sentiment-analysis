@@ -63,7 +63,7 @@ export default function IngestionPage() {
     displayRows.forEach(row => {
       displayColumns.forEach(col => {
         const val = row[col];
-        if (val === null || val === undefined || val === '') {
+        if (val === null || val === undefined || String(val).trim() === '') {
           missingCount++;
         }
       });
@@ -129,11 +129,11 @@ export default function IngestionPage() {
       // Parse CSV/TSV with PapaParse
       Papa.parse(file, {
         header: true,
-        skipEmptyLines: true,
+        skipEmptyLines: 'greedy', // Completely blank rows are skipped and not counted
         delimiter: extension === 'tsv' ? '\t' : undefined,
         complete: (results) => {
           if (results.data && results.data.length > 0) {
-            const columns = results.meta.fields || Object.keys(results.data[0]);
+            const columns = results.meta.fields || Object.keys(results.data[0] || {});
             setParsedData({ columns, rows: results.data });
             setOriginalData({ columns, rows: results.data });
           } else {
@@ -154,9 +154,11 @@ export default function IngestionPage() {
           const workbook = XLSX.read(e.target.result, { type: 'array' });
           const sheetName = workbook.SheetNames[0];
           const sheet = workbook.Sheets[sheetName];
+          // Default behavior skips completely blank rows
           const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+          
           if (jsonData.length > 0) {
-            const columns = Object.keys(jsonData[0]);
+            const columns = Object.keys(jsonData[0] || {});
             setParsedData({ columns, rows: jsonData });
             setOriginalData({ columns, rows: jsonData });
           } else {
@@ -400,9 +402,6 @@ export default function IngestionPage() {
                   <div className="text-sm font-medium text-slate-500 mb-1">Detected Language</div>
                   <div className="text-lg font-bold text-slate-900">
                     {insights.detectedLanguage}
-                    <span className="text-xs text-emerald-600 font-medium ml-2 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
-                      {insights.langConfidence}
-                    </span>
                   </div>
                 </div>
               </div>

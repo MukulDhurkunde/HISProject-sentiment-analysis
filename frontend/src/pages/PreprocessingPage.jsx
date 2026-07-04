@@ -20,11 +20,12 @@ import {
 
 export default function PreprocessingPage() {
   const navigate = useNavigate();
-  const { parsedData, originalData, selectedTextColumn, setParsedData, setAppliedPreprocessConfig, appliedPreprocessConfig } = useDataset();
+  const { parsedData, originalData, selectedTextColumn, labelColumn, setParsedData, setAppliedPreprocessConfig, appliedPreprocessConfig } = useDataset();
   const [missingHandling, setMissingHandling] = useState(appliedPreprocessConfig?.missingHandling || '');
 
   // Whether a text column was selected from the Ingestion Hub
   const hasTextColumn = !!selectedTextColumn;
+  const targetColumns = [selectedTextColumn, labelColumn].filter(Boolean);
 
   // Normalization Toggles
   const [config, setConfig] = useState(appliedPreprocessConfig?.config || {
@@ -64,7 +65,7 @@ export default function PreprocessingPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             df_rows: previewRows,
-            columns: [selectedTextColumn],
+            columns: targetColumns,
             missing_strategy: missingHandling || "skip",
             config: config
           })
@@ -124,7 +125,7 @@ export default function PreprocessingPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           df_rows: dataToProcess.rows,
-          columns: [selectedTextColumn],
+          columns: targetColumns,
           missing_strategy: missingHandling || "skip",
           config: config
         })
