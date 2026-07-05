@@ -283,6 +283,20 @@ apply_preprocessing <- function(df, columns, missing_strategy, config) {
   # 1. Handle missing text
   df_clean <- handle_missing_text(df, columns, missing_strategy)
   
+  text_col <- columns[1]
+  
+  # Filter invalid labels if a label column is specified
+  if (length(columns) > 1) {
+    label_col <- columns[2]
+    valid_labels <- c("positive", "pos", "1", "good", "true",
+                      "negative", "neg", "-1", "bad", "false",
+                      "neutral", "neu", "0", "mixed")
+    
+    labels_clean <- str_trim(tolower(as.character(df_clean[[label_col]])))
+    valid_mask <- labels_clean %in% valid_labels
+    df_clean <- df_clean[valid_mask, , drop = FALSE]
+  }
+
   # 2. Capture raw text AFTER missing handling but BEFORE transformation
   #    This ensures preview rows are correctly aligned even when rows were deleted
   raw_texts_by_col <- list()
@@ -290,19 +304,17 @@ apply_preprocessing <- function(df, columns, missing_strategy, config) {
     raw_texts_by_col[[col]] <- df_clean[[col]]
   }
 
-  # Keep track of raw texts for stats
+  # Keep track of raw texts for stats (only for the text column)
   all_raw_samples <- c()
   all_transformed_samples <- c()
   
-  # 3. Apply text normalization to target columns
-  for (col in columns) {
-    raw_texts <- df_clean[[col]]
-    transformed_texts <- transform_text(raw_texts, config)
-    df_clean[[col]] <- transformed_texts
-    
-    all_raw_samples <- c(all_raw_samples, raw_texts)
-    all_transformed_samples <- c(all_transformed_samples, transformed_texts)
-  }
+  # 3. Apply text normalization ONLY to the text column
+  raw_texts <- df_clean[[text_col]]
+  transformed_texts <- transform_text(raw_texts, config)
+  df_clean[[text_col]] <- transformed_texts
+  
+  all_raw_samples <- raw_texts
+  all_transformed_samples <- transformed_texts
   
   # 4. Compute stats
   stats <- compute_preprocessing_stats(
