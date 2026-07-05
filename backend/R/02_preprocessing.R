@@ -19,11 +19,12 @@ handle_missing_text <- function(df, columns, strategy) {
         filter(!is.na(.data[[col]]) & str_trim(.data[[col]]) != "")
     }
   } else if (strategy == "skip") {
-    # Frontend previously called this "replace" and set to "[No Review]"
-    # "Skip in analysis" implies we mark it clearly so downstream ignores it
+    missing_mask <- rep(FALSE, nrow(df))
     for (col in columns) {
-      is_missing <- is.na(df[[col]]) | str_trim(df[[col]]) == ""
-      df[[col]][is_missing] <- "[No Review]"
+      missing_mask <- missing_mask | (is.na(df[[col]]) | str_trim(df[[col]]) == "")
+    }
+    for (col in columns) {
+      df[[col]][missing_mask] <- "[No Review]"
     }
   }
   

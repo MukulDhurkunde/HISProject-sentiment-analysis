@@ -20,7 +20,7 @@ const CONFIG_LABELS = {
   specialChars: 'Special character removal',
   numbers: 'Number removal',
 };
-const MISSING_LABELS = { deletion: 'Row Deletion', replace: 'Skip in Analysis' };
+const MISSING_LABELS = { deletion: 'Row Deletion', skip: 'Skip in Analysis' };
 
 // ── Stat helpers ─────────────────────────────────────────────────────────────
 

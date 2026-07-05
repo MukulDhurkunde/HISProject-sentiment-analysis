@@ -51,7 +51,8 @@ export function ReviewExplorer({ selectedSentiment, showMislabeled, onClearMisla
     return analysisResults.processed_rows.map((row, index) => {
       const raw = selectedTextColumn ? row[selectedTextColumn] : null;
       const rawStr = raw == null ? '' : String(raw).trim();
-      const isMissing = rawStr === '' || rawStr === '[No Review]';
+      const rawStrLower = rawStr.toLowerCase().replace(/\[|\]/g, '');
+      const isMissing = rawStr === '' || rawStrLower === 'no review';
       return {
         id:               `ROW-${String(index + 1).padStart(3, '0')}`,
         originalPolarity: row.original_sentiment_label || null,

@@ -21,7 +21,7 @@ import {
 export default function PreprocessingPage() {
   const navigate = useNavigate();
   const { parsedData, originalData, selectedTextColumn, labelColumn, setParsedData, setAppliedPreprocessConfig, appliedPreprocessConfig } = useDataset();
-  const [missingHandling, setMissingHandling] = useState(appliedPreprocessConfig?.missingHandling || '');
+  const [missingHandling, setMissingHandling] = useState(appliedPreprocessConfig?.missingHandling || 'skip');
 
   // Whether a text column was selected from the Ingestion Hub
   const hasTextColumn = !!selectedTextColumn;
@@ -108,7 +108,7 @@ export default function PreprocessingPage() {
       specialChars: false,
       numbers: false
     });
-    setMissingHandling('');
+    setMissingHandling('skip');
   };
 
   const handleApplyTransformations = async () => {
@@ -187,7 +187,7 @@ export default function PreprocessingPage() {
                   >
                     <option value="" disabled>Select strategy...</option>
                     <option value="deletion">Row Deletion</option>
-                    <option value="replace">Skip in Analysis</option>
+                    <option value="skip">Skip in Analysis</option>
                   </select>
                   <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

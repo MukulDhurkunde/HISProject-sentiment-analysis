@@ -49,6 +49,15 @@ label_column <- payload$label_column
 df <- as.data.frame(df_rows)
 if (!text_column %in% colnames(df)) stop(sprintf("Text column '%s' not found in dataset", text_column))
 
+# Filter out skipped rows so they don't enter the sentiment engine, Review Explorer, or Dashboard
+skip_mask <- df[[text_column]] == "[No Review]" | 
+             tolower(trimws(as.character(df[[text_column]]))) == "no review" | 
+             tolower(trimws(as.character(df[[text_column]]))) == "[no review]"
+
+if (any(skip_mask, na.rm = TRUE)) {
+  df <- df[!skip_mask, ]
+}
+
 texts       <- as.character(df[[text_column]])
 word_counts <- sapply(strsplit(texts, "\\W+"), function(x) sum(nchar(x) > 0))
 word_counts[word_counts == 0] <- 1

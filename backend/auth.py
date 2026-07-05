@@ -22,7 +22,7 @@ SECRET_KEY = os.environ.get(
     "his-project-sentiment-analyzer-dev-secret-key-2026"
 )
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+ACCESS_TOKEN_EXPIRE_MINUTES = 240
 
 
 # ── Password Hashing Helpers ────────────────────────────────────────────────
