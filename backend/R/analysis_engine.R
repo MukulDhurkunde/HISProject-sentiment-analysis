@@ -67,8 +67,7 @@ if (lexicon == "nrc") {
 
 # Attach normalized original labels so the frontend always has a clean "Label" field
 if (!is.null(label_column) && nchar(label_column) > 0 && label_column %in% colnames(df)) {
-  df$original_sentiment_label <- vapply(as.character(df[[label_column]]),
-                                        normalize_sentiment, character(1))
+  df$original_sentiment_label <- normalize_label_set(as.character(df[[label_column]]))
 }
 
 # --- ML Model Training ---
@@ -84,7 +83,7 @@ if (!is.null(ml_model) && !is.null(label_column) &&
   source(file.path(script_dir, "run_ml_training.R"))
 
   # Normalize labels before training so model class names are always clean
-  ml_norm_labels <- vapply(as.character(df[[label_column]]), normalize_sentiment, character(1))
+  ml_norm_labels <- normalize_label_set(as.character(df[[label_column]]))
   ml_result      <- train_and_evaluate(texts, ml_norm_labels, ml_model)
 
   if (!is.null(ml_result$error)) {

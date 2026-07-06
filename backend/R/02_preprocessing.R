@@ -284,18 +284,6 @@ apply_preprocessing <- function(df, columns, missing_strategy, config) {
   df_clean <- handle_missing_text(df, columns, missing_strategy)
   
   text_col <- columns[1]
-  
-  # Filter invalid labels if a label column is specified
-  if (length(columns) > 1) {
-    label_col <- columns[2]
-    valid_labels <- c("positive", "pos", "1", "good", "true",
-                      "negative", "neg", "-1", "bad", "false",
-                      "neutral", "neu", "0", "mixed")
-    
-    labels_clean <- str_trim(tolower(as.character(df_clean[[label_col]])))
-    valid_mask <- labels_clean %in% valid_labels
-    df_clean <- df_clean[valid_mask, , drop = FALSE]
-  }
 
   # 2. Capture raw text AFTER missing handling but BEFORE transformation
   #    This ensures preview rows are correctly aligned even when rows were deleted

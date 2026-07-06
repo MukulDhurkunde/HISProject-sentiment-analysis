@@ -17,3 +17,25 @@ normalize_sentiment <- function(lbl) {
   if (l %in% c("neutral",  "neu", "0",  "mixed"))        return("Neutral")
   paste0(toupper(substr(l, 1, 1)), substring(l, 2))
 }
+
+# Context-aware normalization for a full label vector.
+# Detects 1-5 star rating columns before falling back to per-label normalize_sentiment().
+# 1-2 → Negative, 3 → Neutral, 4-5 → Positive.
+normalize_label_set <- function(labels_vec) {
+  raw          <- trimws(as.character(labels_vec))
+  numeric_vals <- suppressWarnings(as.numeric(raw))
+  all_numeric  <- !any(is.na(numeric_vals))
+
+  if (all_numeric) {
+    unique_vals <- sort(unique(numeric_vals))
+    # Exactly a 1-5 star scale: all values are integers within [1, 5]
+    is_star_rating <- all(unique_vals %in% 1:5) && max(unique_vals) >= 4
+    if (is_star_rating) {
+      return(ifelse(numeric_vals >= 4, "Positive",
+             ifelse(numeric_vals <= 2, "Negative", "Neutral")))
+    }
+  }
+
+  # Fall back to per-label text normalization
+  vapply(raw, normalize_sentiment, character(1))
+}
