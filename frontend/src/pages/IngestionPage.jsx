@@ -39,6 +39,8 @@ export default function IngestionPage() {
   // Local-only ephemeral state
   const [isParsing, setIsParsing] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
+  const [rawFile, setRawFile] = useState(null);
+  const [hasHeaders, setHasHeaders] = useState(true);
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
 
@@ -112,7 +114,7 @@ export default function IngestionPage() {
     });
   }, [displayColumns, displayRows]);
 
-  const processFile = (file) => {
+  const processFile = (file, currentHasHeaders) => {
     setFileInfo({ name: file.name, size: file.size, type: file.type });
     setIsParsing(true);
     setParseError(null);
@@ -128,14 +130,37 @@ export default function IngestionPage() {
     if (extension === 'csv' || extension === 'tsv') {
       // Parse CSV/TSV with PapaParse
       Papa.parse(file, {
-        header: true,
+        header: currentHasHeaders,
         skipEmptyLines: 'greedy', // Completely blank rows are skipped and not counted
         delimiter: extension === 'tsv' ? '\t' : undefined,
         complete: (results) => {
           if (results.data && results.data.length > 0) {
-            const columns = results.meta.fields || Object.keys(results.data[0] || {});
-            setParsedData({ columns, rows: results.data });
-            setOriginalData({ columns, rows: results.data });
+            let columns;
+            let rows;
+            if (currentHasHeaders) {
+              columns = results.meta.fields || Object.keys(results.data[0] || {});
+              rows = results.data;
+            } else {
+              const numCols = results.data[0].length;
+              columns = Array.from({ length: numCols }, (_, i) => {
+                let name = '';
+                let index = i;
+                while (index >= 0) {
+                  name = String.fromCharCode((index % 26) + 65) + name;
+                  index = Math.floor(index / 26) - 1;
+                }
+                return `Column ${name}`;
+              });
+              rows = results.data.map(rowArr => {
+                const rowObj = {};
+                columns.forEach((col, i) => {
+                  rowObj[col] = rowArr[i];
+                });
+                return rowObj;
+              });
+            }
+            setParsedData({ columns, rows });
+            setOriginalData({ columns, rows });
           } else {
             setParseError('The file appears to be empty.');
           }
@@ -155,12 +180,37 @@ export default function IngestionPage() {
           const sheetName = workbook.SheetNames[0];
           const sheet = workbook.Sheets[sheetName];
           // Default behavior skips completely blank rows
-          const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+          const jsonData = currentHasHeaders 
+            ? XLSX.utils.sheet_to_json(sheet, { defval: '' })
+            : XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
           
           if (jsonData.length > 0) {
-            const columns = Object.keys(jsonData[0] || {});
-            setParsedData({ columns, rows: jsonData });
-            setOriginalData({ columns, rows: jsonData });
+            let columns;
+            let rows;
+            if (currentHasHeaders) {
+              columns = Object.keys(jsonData[0] || {});
+              rows = jsonData;
+            } else {
+              const numCols = Math.max(...jsonData.map(row => row.length));
+              columns = Array.from({ length: numCols }, (_, i) => {
+                let name = '';
+                let index = i;
+                while (index >= 0) {
+                  name = String.fromCharCode((index % 26) + 65) + name;
+                  index = Math.floor(index / 26) - 1;
+                }
+                return `Column ${name}`;
+              });
+              rows = jsonData.map(rowArr => {
+                const rowObj = {};
+                columns.forEach((col, i) => {
+                  rowObj[col] = rowArr[i] !== undefined ? rowArr[i] : '';
+                });
+                return rowObj;
+              });
+            }
+            setParsedData({ columns, rows });
+            setOriginalData({ columns, rows });
           } else {
             setParseError('The Excel sheet appears to be empty.');
           }
@@ -206,7 +256,10 @@ export default function IngestionPage() {
 
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
-    if (file) processFile(file);
+    if (file) {
+      setRawFile(file);
+      processFile(file, hasHeaders);
+    }
     // Reset so the same file can be re-selected (e.g. after edits in Excel)
     e.target.value = '';
   };
@@ -215,7 +268,10 @@ export default function IngestionPage() {
     e.preventDefault();
     e.stopPropagation();
     const file = e.dataTransfer.files[0];
-    if (file) processFile(file);
+    if (file) {
+      setRawFile(file);
+      processFile(file, hasHeaders);
+    }
   };
 
   // Build dynamic grid template based on column count
@@ -238,12 +294,28 @@ export default function IngestionPage() {
         {/* Content Body */}
         <div className="flex-1 p-8 overflow-hidden flex flex-col gap-4">
           {/* Upload Dataset Section - Compact */}
-          <div
-            className="shrink-0 border border-slate-200 rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow cursor-pointer group"
-            onClick={() => fileInputRef.current?.click()}
-            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-            onDrop={handleDrop}
-          >
+          <div className="flex flex-col gap-3">
+            <div className="flex justify-between items-center px-1">
+              <h2 className="text-base font-semibold text-slate-800">Data Source</h2>
+              <label className="flex items-center text-base font-medium text-slate-700 cursor-pointer hover:text-slate-900 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={hasHeaders}
+                  onChange={(e) => {
+                    setHasHeaders(e.target.checked);
+                    if (rawFile) processFile(rawFile, e.target.checked);
+                  }}
+                  className="mr-3 w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600 focus:ring-offset-1"
+                />
+                My dataset has headers
+              </label>
+            </div>
+            <div
+              className="shrink-0 border border-slate-200 rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow cursor-pointer group"
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              onDrop={handleDrop}
+            >
             <div className="flex items-center gap-4 px-6 py-3.5">
               <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg shrink-0 group-hover:bg-indigo-100 transition-colors">
                 {isParsing ? <Loader2 className="w-5 h-5 animate-spin" /> : <UploadCloud className="w-5 h-5" />}
@@ -267,6 +339,7 @@ export default function IngestionPage() {
                 Browse Files
               </button>
             </div>
+          </div>
           </div>
 
           {/* Parse Error Banner */}

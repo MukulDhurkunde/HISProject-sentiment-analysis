@@ -10,7 +10,7 @@ function HorizontalBarChart({ title, data, colorClass, maxCount, markers }) {
           const widthPercentage = maxCount > 0 ? (item.count / maxCount) * 100 : 0;
           return (
             <div key={index} className="flex items-center gap-3 group relative h-8">
-              <span className="w-10 text-right text-xs font-medium text-slate-600 truncate">
+              <span className="w-28 text-right text-xs font-medium text-slate-600 truncate" title={item.word}>
                 {item.word}
               </span>
               <div className="flex-1 h-full bg-slate-50 flex items-center">
@@ -27,7 +27,7 @@ function HorizontalBarChart({ title, data, colorClass, maxCount, markers }) {
           );
         })}
         {/* X-axis approx markers */}
-        <div className="absolute bottom-0 left-[60px] right-0 h-4">
+        <div className="absolute bottom-0 left-[132px] right-0 h-4">
           {markers.map(marker => (
              <span 
                key={marker} 
