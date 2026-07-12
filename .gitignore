@@ -19,7 +19,7 @@ dist/
 .Rhistory
 .RData
 .Rproj.user/
-
+#
 # Temp files
 *.tmp
 *.log
