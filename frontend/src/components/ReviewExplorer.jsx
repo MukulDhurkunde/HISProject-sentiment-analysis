@@ -93,7 +93,6 @@ export function ReviewExplorer({ selectedSentiment, showMislabeled, onClearMisla
   const endIdx        = Math.min(startIdx + ROWS_PER_PAGE, totalFiltered);
   const displayRows   = filteredRows.slice(startIdx, endIdx);
 
-  // Row ID + Label (optional) + Lexicon Says + ML Says (optional) + Emotion (NRC only) + Source Text
   const colCount = 3 + (hasOriginalLabels ? 1 : 0) + (hasMlLabels ? 1 : 0) + (isNrc ? 1 : 0);
 
   if (!analysisResults) {
@@ -109,7 +108,6 @@ export function ReviewExplorer({ selectedSentiment, showMislabeled, onClearMisla
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
 
-      {/* Header */}
       <div className="p-6 border-b border-slate-200 bg-white">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -145,7 +143,6 @@ export function ReviewExplorer({ selectedSentiment, showMislabeled, onClearMisla
         </div>
       </div>
 
-      {/* Mislabeled filter banner */}
       {showMislabeled && (
         <div className="px-6 py-2.5 bg-amber-50 border-b border-amber-200 flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs text-amber-700 font-medium">
@@ -158,7 +155,6 @@ export function ReviewExplorer({ selectedSentiment, showMislabeled, onClearMisla
         </div>
       )}
 
-      {/* Table */}
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 text-[11px] font-bold uppercase tracking-wider">
@@ -183,7 +179,6 @@ export function ReviewExplorer({ selectedSentiment, showMislabeled, onClearMisla
                 <tr key={review.id} className="transition-colors hover:bg-slate-50/50">
                   <td className="px-6 py-4 font-medium text-slate-500 text-xs">{review.id}</td>
 
-                  {/* Original label */}
                   {hasOriginalLabels && (
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold border ${POLARITY_STYLES[review.originalPolarity] || POLARITY_STYLES.Neutral}`}>
@@ -192,14 +187,12 @@ export function ReviewExplorer({ selectedSentiment, showMislabeled, onClearMisla
                     </td>
                   )}
 
-                  {/* Lexicon Says — always shown, drives word highlights */}
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold border ${POLARITY_STYLES[review.lexiconPolarity] || POLARITY_STYLES.Neutral}`}>
                       {review.lexiconPolarity}
                     </span>
                   </td>
 
-                  {/* ML Says */}
                   {hasMlLabels && (
                     <td className="px-6 py-4">
                       {review.mlPolarity ? (
@@ -213,12 +206,10 @@ export function ReviewExplorer({ selectedSentiment, showMislabeled, onClearMisla
                     </td>
                   )}
 
-                  {/* Emotion — NRC only */}
                   {isNrc && (
                     <td className="px-6 py-4 text-slate-600 text-xs">{review.emotion}</td>
                   )}
 
-                  {/* Source text — word highlights driven by Lexicon Says */}
                   <td className="px-6 py-4 text-slate-800">
                     <div className="leading-relaxed text-sm">
                       {highlightText(review.text, review.lexiconPolarity)}
@@ -231,7 +222,6 @@ export function ReviewExplorer({ selectedSentiment, showMislabeled, onClearMisla
         </table>
       </div>
 
-      {/* Pagination */}
       <div className="px-6 py-3 border-t border-slate-200 flex items-center justify-between bg-slate-50/50">
         <span className="font-medium text-xs text-slate-600">
           Showing {displayRows.length > 0 ? startIdx + 1 : 0}–{endIdx} of {totalFiltered.toLocaleString()} records

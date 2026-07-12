@@ -2,10 +2,7 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-/**
- * Wraps protected routes — redirects to login if not authenticated.
- * Shows a subtle loading spinner while auth state is being initialized.
- */
+// Wraps protected routes — redirects to login if not authenticated.
 export default function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
 

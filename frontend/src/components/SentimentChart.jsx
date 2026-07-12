@@ -26,8 +26,6 @@ export function SentimentChart({ selectedSentiment, onSentimentClick, showMislab
   const { analysisResults } = useDataset();
   const cx = 18, cy = 18, radius = 14;
 
-  // Distribution strictly uses lexicon labels
-  // (Original user labels are ignored for the pie chart, but tracked for mislabeling)
   const hasOriginalLabels = useMemo(() =>
     analysisResults?.processed_rows?.some(row => row.original_sentiment_label),
     [analysisResults]

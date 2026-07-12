@@ -1,20 +1,6 @@
-# analysis_engine.R — Analysis Engine page
-#
-# Handles all lexicon scoring and ML model training.
-#
-# Expects these variables (set by run_analysis.R before source() is called):
-#   df, texts, word_counts, lexicon, threshold, theme_count,
-#   ml_model, label_column, script_dir
-#
-# Produces:
-#   df             — updated with: sentiment_score, sentiment_label,
-#                    emotional_themes, nrc_* columns (NRC only),
-#                    original_sentiment_label (if label_column provided),
-#                    ml_sentiment_label (if ML model selected)
-#   ml_metrics     — list of model evaluation metrics (or NULL)
-#   ml_error       — error message string if training failed (or NULL)
+# analysis_page.R: Handles lexicon scoring and ML model training.
 
-# --- Lexicon Scoring ---
+
 
 scores     <- numeric(length(texts))
 labels     <- character(length(texts))
@@ -54,7 +40,7 @@ if (lexicon == "nrc") {
   }
 }
 
-# Append scores, labels, and emotional themes to df
+
   df$sentiment_score <- raw_scores
 df$sentiment_label <- labels
 
@@ -65,12 +51,12 @@ if (lexicon == "nrc") {
   df$emotional_themes <- ""
 }
 
-# Attach normalized original labels so the frontend always has a clean "Label" field
+# Normalize original labels so frontend always has a clean "Label" field
 if (!is.null(label_column) && nchar(label_column) > 0 && label_column %in% colnames(df)) {
   df$original_sentiment_label <- normalize_label_set(as.character(df[[label_column]]))
 }
 
-# --- ML Model Training ---
+
 
 ml_metrics <- NULL
 ml_error   <- NULL
@@ -80,9 +66,9 @@ if (!is.null(ml_model) && !is.null(label_column) &&
     label_column %in% colnames(df)) {
 
   cat(sprintf("\n--- ML Training: model=%s, label=%s ---\n", ml_model, label_column))
-  source(file.path(script_dir, "run_ml_training.R"))
+  source(file.path(script_dir, "analysis_ml_training.R"))
 
-  # Normalize labels before training so model class names are always clean
+  # Normalize labels so model class names are clean
   ml_norm_labels <- normalize_label_set(as.character(df[[label_column]]))
   ml_result      <- train_and_evaluate(texts, ml_norm_labels, ml_model)
 

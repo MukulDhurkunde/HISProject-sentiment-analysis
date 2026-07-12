@@ -7,7 +7,6 @@ export function AfinnHistogram() {
   const histogramData = useMemo(() => {
     if (!analysisResults?.processed_rows) return null;
 
-    // Initialise bins for scores -5 … +5
     const bins = {};
     for (let s = -5; s <= 5; s++) bins[s] = 0;
 
@@ -55,14 +54,12 @@ export function AfinnHistogram() {
       </div>
 
       <div className="flex items-start h-[250px]">
-        {/* Y-axis labels */}
         <div className="h-full flex flex-col justify-between text-[10px] text-slate-400 font-medium text-right pr-3 pb-8 w-10">
           <span>{maxCount}</span>
           <span>{Math.round(maxCount / 2)}</span>
           <span>0</span>
         </div>
         
-        {/* Chart Area */}
         <div className="flex-1 h-full flex flex-col">
           <div className="flex-1 flex items-end justify-between gap-1 border-b border-slate-200 relative pb-0">
             {histogramData.map((item) => {
@@ -82,7 +79,6 @@ export function AfinnHistogram() {
             })}
           </div>
           
-          {/* X-axis labels */}
           <div className="flex justify-between gap-1 mt-2">
              {histogramData.map((item) => (
                 <div key={item.score} className="flex-1 text-center text-xs font-semibold text-slate-600">

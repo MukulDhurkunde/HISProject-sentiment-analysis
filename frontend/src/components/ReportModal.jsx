@@ -4,8 +4,6 @@ import { X, Printer, FileText } from 'lucide-react';
 import { useDataset } from '../context/DatasetContext';
 import frankfurtImg from '../assets/Frankfurt_University.png';
 
-// ── Constants ────────────────────────────────────────────────────────────────
-
 const LEXICON_NAMES = { bing: 'Bing Lexicon', afinn: 'AFINN Lexicon', nrc: 'NRC Lexicon' };
 const MODEL_NAMES = {
   svm: 'Support Vector Machine (SVM)',
@@ -22,13 +20,9 @@ const CONFIG_LABELS = {
 };
 const MISSING_LABELS = { deletion: 'Row Deletion', skip: 'Skip in Analysis' };
 
-// ── Stat helpers ─────────────────────────────────────────────────────────────
-
 const avg = arr => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0);
 const wordCount = str => str.trim().split(/\s+/).filter(w => w).length;
 const truncate = (str, n = 110) => (str.length > n ? str.slice(0, n) + '…' : str);
-
-// ── Main component ────────────────────────────────────────────────────────────
 
 export function ReportModal({ onClose }) {
   const {
@@ -54,12 +48,10 @@ export function ReportModal({ onClose }) {
     hour: '2-digit', minute: '2-digit',
   });
 
-  // ── Computed analytics (all derived from processed_rows) ──────────────────
 
   const computed = useMemo(() => {
     if (!rows.length) return null;
 
-    // 1. Per-class score + length stats — strictly use lexicon labels
     const byClass = { Positive: { scores: [], lengths: [] }, Neutral: { scores: [], lengths: [] }, Negative: { scores: [], lengths: [] } };
     rows.forEach(row => {
       const c = row.sentiment_label;
@@ -83,7 +75,6 @@ export function ReportModal({ onClose }) {
       };
     });
 
-    // 2. Extreme examples
     const enriched = rows.map(row => ({
       score: Number(row.sentiment_score || 0),
       label: row.sentiment_label,
@@ -97,7 +88,6 @@ export function ReportModal({ onClose }) {
       .sort((a, b) => Math.abs(a.score) - Math.abs(b.score))
       .slice(0, 5);
 
-    // 3. Lexicon coverage
     const posSet = new Set(insights?.lexicon_words?.positive || []);
     const negSet = new Set(insights?.lexicon_words?.negative || []);
     const lexSet = new Set([...posSet, ...negSet]);
@@ -109,18 +99,15 @@ export function ReportModal({ onClose }) {
     });
     const coverage = totalWords > 0 ? Math.round((coveredWords / totalWords) * 100) : 0;
 
-    // 4. Low-confidence count (score very close to zero)
     const lowConfThreshold = 0.05;
     const lowConfCount = enriched.filter(r => Math.abs(r.score) < lowConfThreshold).length;
     const lowConfPct   = Math.round((lowConfCount / rows.length) * 100);
 
-    // 5. Dominant sentiment
     const total = rows.length;
     const counts = { Positive: classStats.Positive.count, Neutral: classStats.Neutral.count, Negative: classStats.Negative.count };
     const dominant = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
     const dominantPct = Math.round((dominant[1] / total) * 100);
 
-    // 6. Text length insight
     const avgPos = classStats.Positive.avgLength;
     const avgNeg = classStats.Negative.avgLength;
     const lengthDiffPct = avgPos > 0 ? Math.round(((avgNeg - avgPos) / avgPos) * 100) : 0;
@@ -133,7 +120,6 @@ export function ReportModal({ onClose }) {
     };
   }, [rows, textCol, insights]);
 
-  // ML agreement with original labels
   const mlAgreement = useMemo(() => {
     const eligible = rows.filter(r => r.original_sentiment_label && r.ml_sentiment_label);
     if (!eligible.length) return null;
@@ -151,7 +137,6 @@ export function ReportModal({ onClose }) {
 
       <div className="print-content-wrapper relative z-10 flex flex-col h-full w-full max-w-5xl mx-auto bg-white shadow-2xl">
 
-        {/* Modal header — hidden during print */}
         <div className="no-print flex items-center justify-between px-6 py-4 bg-slate-900 text-white shrink-0">
           <div className="flex items-center gap-3">
             <FileText className="w-5 h-5 text-indigo-400" />
@@ -161,12 +146,10 @@ export function ReportModal({ onClose }) {
           <div className="flex items-center gap-3">
             <button
               onClick={() => {
-                // Clone the report into a top-level container (sibling of #root)
-                // so it's free of all parent overflow/height/position constraints
+                // Clone report to top-level so it escapes parent overflow constraints for printing
                 const report = document.querySelector('.report-printable');
                 if (!report) return;
 
-                // Remove any leftover print container from a previous print
                 const existing = document.getElementById('print-container');
                 if (existing) existing.remove();
 
@@ -178,7 +161,6 @@ export function ReportModal({ onClose }) {
 
                 window.print();
 
-                // Clean up after print dialog closes (save or cancel)
                 const cleanup = () => {
                   document.body.classList.remove('printing-active');
                   container.remove();
@@ -197,11 +179,9 @@ export function ReportModal({ onClose }) {
           </div>
         </div>
 
-        {/* Report body */}
         <div className="print-content-wrapper flex-1 overflow-y-auto bg-slate-100">
           <div className="report-printable max-w-[820px] mx-auto bg-white shadow-sm my-6 text-slate-800">
 
-            {/* ══ COVER ═══════════════════════════════════════════════════════ */}
             <div className="bg-slate-900 text-white px-12 pt-10 pb-8">
               <div className="flex items-start justify-between mb-6">
                 <img src={frankfurtImg} alt="Frankfurt University of Applied Sciences" className="h-10 object-contain opacity-90" />
@@ -215,7 +195,6 @@ export function ReportModal({ onClose }) {
                 <p className="text-indigo-300 text-sm font-medium mb-6">{fileInfo.name}</p>
               )}
 
-              {/* Headline stats row */}
               {computed && (
                 <div className="grid grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-700">
                   <CoverStat label="Total Records" value={(ingestionStats?.totalRecords ?? computed.total).toLocaleString()} />
@@ -226,10 +205,8 @@ export function ReportModal({ onClose }) {
               )}
             </div>
 
-            {/* ══ BODY SECTIONS ════════════════════════════════════════════════ */}
             <div className="print-body-sections px-12 py-8 space-y-10">
 
-              {/* ── 1. Data Pipeline Journey ────────────────────────────────── */}
               <Section title="1. Data Pipeline Journey" subtitle="How your raw input transformed through each stage">
                 <div className="grid grid-cols-3 gap-4 mb-4">
                   <PipelineCard stage="Raw Input" color="bg-slate-100 border-slate-300">
@@ -258,7 +235,6 @@ export function ReportModal({ onClose }) {
                   </PipelineCard>
                 </div>
 
-                {/* Preprocessing config applied */}
                 <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm">
                   <span className="font-semibold text-slate-700">Preprocessing applied: </span>
                   {appliedOptions.length > 0
@@ -270,7 +246,6 @@ export function ReportModal({ onClose }) {
                 </div>
               </Section>
 
-              {/* ── 2. Sentiment Distribution + Score Statistics ─────────────── */}
               <Section title="2. Sentiment Distribution & Score Analysis" subtitle="Lexicon scores and text-length statistics shown per class">
                 {computed ? (
                   <table className="w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
@@ -323,7 +298,6 @@ export function ReportModal({ onClose }) {
                   <Empty />
                 )}
 
-                {/* Length insight callout */}
                 {computed && Math.abs(computed.lengthDiffPct) >= 5 && (
                   <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800">
                     <span className="font-bold">Text length insight: </span>
@@ -335,7 +309,6 @@ export function ReportModal({ onClose }) {
                 )}
               </Section>
 
-              {/* ── 3. Extreme Examples ─────────────────────────────────────── */}
               <Section title="3. Most Revealing Examples" subtitle="Automatically selected by score magnitude — these are not arbitrary first rows">
                 {computed ? (
                   <div className="space-y-5">
@@ -354,7 +327,6 @@ export function ReportModal({ onClose }) {
                 )}
               </Section>
 
-              {/* ── 4. Lexicon-Specific Analysis ────────────────────────────── */}
               <Section
                 title={`4. ${LEXICON_NAMES[lexicon] || lexicon.toUpperCase()} — Detailed Results`}
                 subtitle={
@@ -377,10 +349,8 @@ export function ReportModal({ onClose }) {
                 )}
               </Section>
 
-              {/* ── 5. Key Insights ─────────────────────────────────────────── */}
               <Section title="5. Key Insights" subtitle="R-generated analytical findings plus additional computed observations">
                 <div className="space-y-3">
-                  {/* R-generated */}
                   {insights ? (
                     <>
                       <InsightItem label="Conflict Detection"         text={insights.conflict_detection}        border="border-rose-500"   bg="bg-rose-50"   />
@@ -391,7 +361,6 @@ export function ReportModal({ onClose }) {
                     <p className="text-sm text-slate-400 italic">No insights available.</p>
                   )}
 
-                  {/* Computed insights */}
                   {computed && (
                     <>
                       <InsightItem
@@ -427,7 +396,6 @@ export function ReportModal({ onClose }) {
                 </div>
               </Section>
 
-              {/* ── 6. ML Performance ───────────────────────────────────────── */}
               <Section title="6. Machine Learning Model Performance" subtitle="Metrics evaluated on a held-out 20% test set using stratified splitting">
                 {ml && ml.accuracy != null ? (
                   <div className="space-y-4">
@@ -457,7 +425,6 @@ export function ReportModal({ onClose }) {
                       </tbody>
                     </table>
 
-                    {/* Recommendation based on accuracy */}
                     <div className={`rounded-lg px-4 py-3 border-l-4 text-sm avoid-page-break ${
                       ml.accuracy >= 80 ? 'bg-emerald-50 border-emerald-500' :
                       ml.accuracy >= 60 ? 'bg-indigo-50 border-indigo-400' :
@@ -489,7 +456,6 @@ export function ReportModal({ onClose }) {
                 )}
               </Section>
 
-              {/* ── Footer ──────────────────────────────────────────────────── */}
               <div className="report-footer border-t-2 border-slate-100 pt-6 text-center space-y-1">
                 <p className="text-xs text-slate-400 font-medium">Sentiment Analysis Pipeline — Frankfurt University of Applied Sciences</p>
                 <p className="text-xs text-slate-400">Report generated on {generatedDate}</p>
@@ -503,8 +469,6 @@ export function ReportModal({ onClose }) {
     document.body
   );
 }
-
-// ── Sub-components ─────────────────────────────────────────────────────────────
 
 function Section({ title, subtitle, children }) {
   return (
@@ -695,7 +659,6 @@ function NrcMatrixTable({ matrix }) {
   const { emotions, by_polarity } = matrix;
   const polarities = ['Positive', 'Neutral', 'Negative'];
 
-  // Global max for relative shading
   let maxVal = 0;
   polarities.forEach(p => emotions.forEach(e => { const v = by_polarity[p]?.[e] ?? 0; if (v > maxVal) maxVal = v; }));
 

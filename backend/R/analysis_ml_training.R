@@ -1,9 +1,4 @@
-# ==============================================================================
-# run_ml_training.R
-# ML training module — trains on 80%, evaluates on 20%, then predicts on ALL.
-# Models: Linear SVM (LiblineaR), Penalized Logistic Regression (glmnet),
-#         Random Forest (ranger)
-# ==============================================================================
+# analysis_ml_training.R: Trains and evaluates ML models (80/20 split).
 
 CRAN_MIRROR <- "https://cloud.r-project.org"
 
@@ -20,7 +15,6 @@ install_if_missing_ml <- function(pkg) {
   }
 }
 
-# --- Weighted metrics (precision / recall / F1 / accuracy) -------------------
 compute_metrics <- function(predictions, actuals) {
   lvls <- levels(actuals)
   cm   <- table(
@@ -56,35 +50,29 @@ compute_metrics <- function(predictions, actuals) {
   )
 }
 
-# --- Stratified 80/20 split --------------------------------------------------
 stratified_split <- function(labels, train_ratio = 0.8, seed = 42) {
   set.seed(seed)
   train_idx <- c()
   for (lev in levels(labels)) {
     idx       <- which(labels == lev)
     n_train   <- max(1, floor(length(idx) * train_ratio))
-    train_idx <- c(train_idx, sample(idx, n_train))
+    sampled   <- if (length(idx) == 1) idx else sample(idx, n_train)
+    train_idx <- c(train_idx, sampled)
   }
   sort(train_idx)
 }
 
-# ==============================================================================
-# Main entry point
-# Returns metrics + all_predictions (predictions for every row in the dataset)
-# ==============================================================================
 train_and_evaluate <- function(texts, labels, ml_model, seed = 42) {
 
   labels <- as.factor(labels)
 
-  # Rows with empty / NA labels are excluded from train-test split
-  # but the model still predicts for ALL rows using text features
+  # Exclude empty/NA labels from split; model still predicts all rows
   valid_mask   <- !is.na(labels) & nchar(trimws(as.character(labels))) > 0
   valid_labels <- droplevels(labels[valid_mask])
 
   if (nlevels(valid_labels) < 2) return(list(error = "Cannot train: only one class label found."))
   if (sum(valid_mask)        < 10) return(list(error = "Cannot train: fewer than 10 rows with valid labels."))
 
-  # --- Install and load all packages upfront ----------------------------------
   suppressWarnings(suppressMessages({
     install_if_missing_ml("tm")
     install_if_missing_ml("NLP")
@@ -98,7 +86,6 @@ train_and_evaluate <- function(texts, labels, ml_model, seed = 42) {
     library(ranger)
   }))
 
-  # --- Build TF-IDF Document-Term Matrix --------------------------------------
   cat("Building DTM...\n")
   corpus <- VCorpus(VectorSource(texts))
   dtm    <- DocumentTermMatrix(corpus, control = list(
@@ -115,16 +102,15 @@ train_and_evaluate <- function(texts, labels, ml_model, seed = 42) {
 
   if (ncol(dtm) == 0) return(list(error = "No features remain after text vectorisation."))
 
-  # Convert to matrix and data frame — both needed by different models
+  # Matrix for SVM/glmnet, data.frame for ranger
   dtm_mat           <- as.matrix(dtm)
   colnames(dtm_mat) <- make.names(colnames(dtm_mat), unique = TRUE)
   dtm_df            <- as.data.frame(dtm_mat)
 
-  # --- Stratified 80/20 split (valid-label rows only) -------------------------
-  all_valid_idx <- which(valid_mask)                                     # global positions
+  all_valid_idx <- which(valid_mask)
   local_train   <- stratified_split(valid_labels, train_ratio = 0.8, seed = seed)
-  train_idx     <- all_valid_idx[local_train]                            # global train positions
-  test_idx      <- all_valid_idx[-local_train]                           # global test positions
+  train_idx     <- all_valid_idx[local_train]
+  test_idx      <- all_valid_idx[-local_train]
 
   train_mat <- dtm_mat[train_idx, , drop = FALSE]
   test_mat  <- dtm_mat[test_idx,  , drop = FALSE]
@@ -138,7 +124,6 @@ train_and_evaluate <- function(texts, labels, ml_model, seed = 42) {
   cat(sprintf("DTM: %d docs x %d features · Training on %d valid-label rows\n",
               nrow(dtm_mat), ncol(dtm_mat), sum(valid_mask)))
 
-  # --- Train, get test predictions, then predict on full dataset --------------
   cat(sprintf("Training %s...\n", ml_model))
 
   train_result <- tryCatch({
@@ -177,7 +162,6 @@ train_and_evaluate <- function(texts, labels, ml_model, seed = 42) {
     return(list(error = sprintf("Training failed: %s", train_result$error)))
   }
 
-  # --- Metrics on held-out test set -------------------------------------------
   test_predictions <- factor(train_result$test_predictions, levels = levels(test_y))
   metrics          <- compute_metrics(test_predictions, test_y)
 

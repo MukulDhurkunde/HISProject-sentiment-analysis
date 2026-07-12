@@ -2,9 +2,7 @@ import { useDataset } from '../context/DatasetContext';
 
 const POLARITIES = ['Positive', 'Neutral', 'Negative'];
 
-// Helper to generate a background color from blue (cool) to red (warm)
 function getHeatmapColor(value) {
-  // Map 0-100 to Hue 240 (Blue) down to 0 (Red)
   const hue = 240 - (value / 100) * 240;
   return `hsl(${hue}, 80%, 55%)`;
 }
@@ -33,7 +31,6 @@ export function EmotionHeatmap() {
   const emotions = matrix.emotions;
   const byPolarity = matrix.by_polarity;
 
-  // Find the global max value across all cells for normalisation
   let maxValue = 0;
   POLARITIES.forEach((polarity) => {
     const row = byPolarity[polarity];
@@ -45,7 +42,6 @@ export function EmotionHeatmap() {
     }
   });
 
-  // Avoid division by zero
   const normalise = (val) => (maxValue > 0 ? (val / maxValue) * 100 : 0);
 
   return (
@@ -56,7 +52,6 @@ export function EmotionHeatmap() {
           <p className="text-xs text-slate-500 mt-1">Intensity correlates to numerical emotion score (Cool = Low, Warm = High)</p>
         </div>
         
-        {/* Legend */}
         <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
           <span>Cool (0)</span>
           <div className="w-48 h-2.5 rounded-full" style={{ background: 'linear-gradient(to right, hsl(240,80%,55%), hsl(180,80%,55%), hsl(120,80%,55%), hsl(60,80%,55%), hsl(0,80%,55%))' }}></div>

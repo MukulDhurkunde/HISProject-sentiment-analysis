@@ -21,7 +21,6 @@ from auth import (
 
 app = FastAPI(title="Sentiment Analysis Preprocessing API")
 
-# Configure CORS for React frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],  # Vite dev server
@@ -32,19 +31,12 @@ app.add_middleware(
 
 
 def find_rscript() -> str:
-    """
-    Find the Rscript executable on Windows.
-    Searches in order:
-      1. System PATH (via shutil.which)
-      2. Common Windows installation directories under Program Files
-    Returns the full path to Rscript.exe, or raises an error if not found.
-    """
-    # 1. Check if Rscript is already in PATH
+    """Find the Rscript executable on Windows."""
     rscript_path = shutil.which("Rscript")
     if rscript_path:
         return rscript_path
 
-    # 2. Search common R installation directories on Windows
+
     search_dirs = [
         os.path.join(os.environ.get("ProgramFiles", r"C:\Program Files"), "R"),
         os.path.join(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)"), "R"),
@@ -54,12 +46,12 @@ def find_rscript() -> str:
     for base_dir in search_dirs:
         if not os.path.isdir(base_dir):
             continue
-        # Look for R-x.x.x/bin/Rscript.exe or R-x.x.x/bin/x64/Rscript.exe
+
         pattern = os.path.join(base_dir, "R-*", "bin", "Rscript.exe")
         matches = sorted(glob.glob(pattern), reverse=True)  # Latest version first
         if matches:
             return matches[0]
-        # Also check bin/x64 subdirectory
+
         pattern_x64 = os.path.join(base_dir, "R-*", "bin", "x64", "Rscript.exe")
         matches_x64 = sorted(glob.glob(pattern_x64), reverse=True)
         if matches_x64:
@@ -72,7 +64,7 @@ def find_rscript() -> str:
     )
 
 
-# Discover Rscript path at startup
+
 try:
     RSCRIPT_PATH = find_rscript()
     print(f"[OK] Found Rscript at: {RSCRIPT_PATH}")
@@ -105,7 +97,7 @@ class AnalysisRequest(BaseModel):
     label_column: Optional[str] = None
 
 
-# ── Authentication Endpoints ─────────────────────────────────────────────────
+
 
 @app.post("/api/login", response_model=TokenResponse)
 async def login(request: LoginRequest):
@@ -131,7 +123,7 @@ async def get_me(current_user: UserInfo = Depends(get_current_user)):
     return {"username": current_user.username, "role": current_user.role}
 
 
-# ── Protected Data Endpoints ─────────────────────────────────────────────────
+
 
 @app.post("/api/preprocess")
 async def preprocess_data(
@@ -146,11 +138,10 @@ async def preprocess_data(
                    "and restart the backend server."
         )
 
-    # Convert Pydantic model to dict
+
     payload = request.dict()
     
-    # We will write the payload to a temporary JSON file,
-    # pass it to Rscript, and read the output JSON file.
+
     
     try:
         with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json', encoding='utf-8') as infile:
@@ -160,11 +151,11 @@ async def preprocess_data(
         with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json', encoding='utf-8') as outfile:
             outfile_path = outfile.name
 
-        # Paths
+
         base_dir = os.path.dirname(os.path.abspath(__file__))
-        r_script_path = os.path.join(base_dir, "R", "run_preprocessing.R")
+        r_script_path = os.path.join(base_dir, "R", "preprocessing_runner.R")
         
-        # Run Rscript in a thread so the event loop stays free for other requests
+        # Run in thread to keep event loop non-blocking
         result = await asyncio.to_thread(
             subprocess.run,
             [RSCRIPT_PATH, r_script_path, infile_path, outfile_path],
@@ -178,7 +169,7 @@ async def preprocess_data(
             print("R Script Error Output:", result.stderr)
             raise HTTPException(status_code=500, detail=f"R script failed: {result.stderr}")
             
-        # Read the output
+
         with open(outfile_path, 'r', encoding='utf-8', errors='replace') as outf:
             processed_data = json.load(outf)
             
@@ -187,7 +178,7 @@ async def preprocess_data(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
-        # Cleanup temporary files
+
         if 'infile_path' in locals() and os.path.exists(infile_path):
             os.remove(infile_path)
         if 'outfile_path' in locals() and os.path.exists(outfile_path):
@@ -215,7 +206,7 @@ async def analyze_data(
             outfile_path = outfile.name
 
         base_dir = os.path.dirname(os.path.abspath(__file__))
-        r_script_path = os.path.join(base_dir, "R", "run_analysis.R")
+        r_script_path = os.path.join(base_dir, "R", "analysis_runner.R")
         
         result = await asyncio.to_thread(
             subprocess.run,

@@ -19,14 +19,12 @@ function HorizontalBarChart({ title, data, colorClass, maxCount, markers }) {
                   style={{ width: `${Math.min(widthPercentage, 100)}%` }}
                 />
               </div>
-              {/* Tooltip for count */}
               <div className="absolute right-0 opacity-0 group-hover:opacity-100 bg-slate-800 text-white text-[10px] py-1 px-2 rounded shadow pointer-events-none transition-opacity z-10">
                 {item.count}
               </div>
             </div>
           );
         })}
-        {/* X-axis approx markers */}
         <div className="absolute bottom-0 left-[132px] right-0 h-4">
           {markers.map(marker => (
              <span 
@@ -62,7 +60,6 @@ export function BingWordFrequency() {
 
     const max = allCounts.length > 0 ? Math.max(...allCounts) : 0;
 
-    // Generate ~5 evenly spaced markers from 0 to a nice rounded max
     const niceMax = max > 0 ? Math.ceil(max / 5) * 5 : 0;
     const step = niceMax > 0 ? niceMax / 5 : 0;
     const axisMarkers = [];

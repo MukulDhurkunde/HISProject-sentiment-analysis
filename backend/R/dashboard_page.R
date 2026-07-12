@@ -1,19 +1,4 @@
-# insight_dashboard.R — Insight Dashboard page
-#
-# Generates all insight text, chart data, and lexicon word lists
-# that power the Insight Dashboard and Review Explorer.
-#
-# Expects these variables (set by analysis_engine.R via run_analysis.R):
-#   texts, labels, lexicon, nrc_data (only when lexicon == "nrc")
-#
-# Produces:
-#   insights — list containing:
-#     conflict_detection        : mixed-signal count sentence
-#     confidence_warning        : low-confidence % sentence
-#     actionable_recommendation : dataset-level recommendation
-#     bing_word_freqs           : top-10 pos/neg word counts (bing only)
-#     nrc_emotion_matrix        : avg emotion scores by polarity (nrc only)
-#     lexicon_words             : positive/negative word lists for word highlighting
+# dashboard_page.R: Generates insights and chart data for the Dashboard.
 
 mixed_rows    <- 0
 low_conf_rows <- 0
@@ -72,7 +57,7 @@ insights <- list(
   actionable_recommendation = rec_text
 )
 
-# --- Bing Word Frequency Chart ---
+
 
 if (lexicon == "bing") {
   all_pos_words       <- character(0)
@@ -98,7 +83,7 @@ if (lexicon == "bing") {
   )
 }
 
-# --- NRC Emotion Matrix (heatmap by polarity) ---
+
 
 if (lexicon == "nrc") {
   emos        <- c("anger","anticipation","disgust","fear","joy","sadness","surprise","trust")
@@ -117,7 +102,7 @@ if (lexicon == "nrc") {
   insights$nrc_emotion_matrix <- list(emotions = emos, by_polarity = by_polarity)
 }
 
-# --- Lexicon Word Lists (used by Review Explorer for word highlighting) ---
+
 
 if (lexicon == "bing") {
   dict  <- get_sentiment_dictionary("bing")

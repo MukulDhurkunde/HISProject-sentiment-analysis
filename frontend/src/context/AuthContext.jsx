@@ -35,10 +35,7 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  /**
-   * Authenticate with the backend and store the JWT token.
-   * Returns { success: true } or { success: false, error: string }
-   */
+  // Authenticate and store JWT. Returns { success, error? }
   const login = async (username, password) => {
     try {
       const response = await fetch(`${API_BASE}/api/login`, {
@@ -69,9 +66,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-  /**
-   * Clear auth state and remove stored token.
-   */
+  // Clear auth state and remove stored token.
   const logout = () => {
     setToken(null);
     setUser(null);
