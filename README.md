@@ -107,39 +107,30 @@ Sentiment-Analysis/
 
 Required R packages (`jsonlite`, `syuzhet`, `tm`, `NLP`, `slam`, `LiblineaR`, `glmnet`, `ranger`, `dplyr`, `stringr`) are installed automatically on first run if missing — no manual `install.packages()` step required.
 
-### Backend Setup
+### Install Dependencies
 
 ```bash
-cd backend
-python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-### Frontend Setup
-
-```bash
-cd frontend
-npm install
+cd backend && pip install -r requirements.txt
+cd ../frontend && npm install
 ```
 
 ## Running the App
 
-Start the backend (from `backend/`):
+Open two terminals:
 
 ```bash
-python main.py
+# Terminal 1 — backend (http://localhost:8000)
+cd backend
+python -m uvicorn main:app --port 8000 --reload
 ```
 
-This runs the FastAPI server at `http://localhost:8000` with auto-reload enabled.
-
-Start the frontend (from `frontend/`), in a separate terminal:
-
 ```bash
+# Terminal 2 — frontend (http://localhost:5173)
+cd frontend
 npm run dev
 ```
 
-This runs the Vite dev server at `http://localhost:5173`. Open that URL in your browser and log in to get started.
+Open `http://localhost:5173` in your browser and log in to get started.
 
 ## Demo Credentials
 
