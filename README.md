@@ -166,3 +166,7 @@ All endpoints except `/api/login` require a `Bearer` JWT in the `Authorization` 
 | Random Forest | ML (supervised) | `ranger` | Requires a label column; robust to noisy data |
 
 ML models train on an 80/20 stratified split of the labelled rows and report Accuracy, Precision, Recall, and F1-Score on the held-out test set.
+
+## License
+
+This project is licensed under the [ISC License](https://opensource.org/licenses/ISC).

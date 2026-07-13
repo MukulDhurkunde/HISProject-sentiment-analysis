@@ -1,5 +1,14 @@
 # preprocessing_page.R: Handles text cleaning, normalization, and missing data strategies.
 
+# Auto-install stringr and dplyr if missing
+for (pkg in c("stringr", "dplyr")) {
+  if (!requireNamespace(pkg, quietly = TRUE)) {
+    cat(sprintf("Installing package '%s'...\n", pkg))
+    dir.create(Sys.getenv("R_LIBS_USER"), recursive = TRUE, showWarnings = FALSE)
+    suppressMessages(install.packages(pkg, lib = Sys.getenv("R_LIBS_USER"),
+                                      repos = "https://cloud.r-project.org", quiet = TRUE))
+  }
+}
 library(stringr)
 library(dplyr)
 
